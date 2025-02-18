@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		3044B2952D616DDE0078FE49 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = 3044B2942D616DDE0078FE49 /* OpenAI */; };
 		EFBC534029DFB4EA00334182 /* DemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFBC533F29DFB4EA00334182 /* DemoApp.swift */; };
 		EFBC534429DFB4EB00334182 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EFBC534329DFB4EB00334182 /* Assets.xcassets */; };
 		EFBC534829DFB4EB00334182 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EFBC534729DFB4EB00334182 /* Preview Assets.xcassets */; };
@@ -54,7 +53,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3044B2952D616DDE0078FE49 /* OpenAI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -148,7 +146,6 @@
 			);
 			name = MacCommand;
 			packageProductDependencies = (
-				3044B2942D616DDE0078FE49 /* OpenAI */,
 			);
 			productName = MacCommand;
 			productReference = 3044B28C2D616DC90078FE49 /* MacCommand */;
@@ -513,10 +510,6 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		3044B2942D616DDE0078FE49 /* OpenAI */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = OpenAI;
-		};
 		EFBC536329DFEC2600334182 /* DemoChat */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DemoChat;
