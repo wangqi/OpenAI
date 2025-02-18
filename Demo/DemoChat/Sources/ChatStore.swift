@@ -174,7 +174,8 @@ public final class ChatStore: ObservableObject {
                 query: ChatQuery(
                     messages: conversation.messages.map { message in
                         ChatQuery.ChatCompletionMessageParam(role: message.role, content: message.content)!
-                    }, model: model,
+                    },
+                    model: model,
                     tools: functions
                 )
             )

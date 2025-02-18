@@ -3,10 +3,11 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3044B2952D616DDE0078FE49 /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = 3044B2942D616DDE0078FE49 /* OpenAI */; };
 		EFBC534029DFB4EA00334182 /* DemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFBC533F29DFB4EA00334182 /* DemoApp.swift */; };
 		EFBC534429DFB4EB00334182 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EFBC534329DFB4EB00334182 /* Assets.xcassets */; };
 		EFBC534829DFB4EB00334182 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EFBC534729DFB4EB00334182 /* Preview Assets.xcassets */; };
@@ -17,7 +18,20 @@
 		EFE6B73329E0D47500884A87 /* APIProvidedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFE6B73229E0D47500884A87 /* APIProvidedView.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		3044B28A2D616DC90078FE49 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		3044B28C2D616DC90078FE49 /* MacCommand */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = MacCommand; sourceTree = BUILT_PRODUCTS_DIR; };
 		8CF490312B066F26002C202C /* Demo-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Demo-Info.plist"; sourceTree = "<group>"; };
 		EFBC533C29DFB4EA00334182 /* Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Demo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EFBC533F29DFB4EA00334182 /* DemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoApp.swift; sourceTree = "<group>"; };
@@ -31,7 +45,19 @@
 		EFE6B73229E0D47500884A87 /* APIProvidedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIProvidedView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		3044B28D2D616DC90078FE49 /* MacCommand */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = MacCommand; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
+		3044B2892D616DC90078FE49 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3044B2952D616DDE0078FE49 /* OpenAI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EFBC533929DFB4EA00334182 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -49,6 +75,7 @@
 				8CF490312B066F26002C202C /* Demo-Info.plist */,
 				EFBC535F29DFCE0700334182 /* Packages */,
 				EFBC533E29DFB4EA00334182 /* App */,
+				3044B28D2D616DC90078FE49 /* MacCommand */,
 				EFBC533D29DFB4EA00334182 /* Products */,
 				EFBC536229DFEC2600334182 /* Frameworks */,
 			);
@@ -58,6 +85,7 @@
 			isa = PBXGroup;
 			children = (
 				EFBC533C29DFB4EA00334182 /* Demo.app */,
+				3044B28C2D616DC90078FE49 /* MacCommand */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -103,6 +131,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		3044B28B2D616DC90078FE49 /* MacCommand */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3044B2922D616DC90078FE49 /* Build configuration list for PBXNativeTarget "MacCommand" */;
+			buildPhases = (
+				3044B2882D616DC90078FE49 /* Sources */,
+				3044B2892D616DC90078FE49 /* Frameworks */,
+				3044B28A2D616DC90078FE49 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				3044B28D2D616DC90078FE49 /* MacCommand */,
+			);
+			name = MacCommand;
+			packageProductDependencies = (
+				3044B2942D616DDE0078FE49 /* OpenAI */,
+			);
+			productName = MacCommand;
+			productReference = 3044B28C2D616DC90078FE49 /* MacCommand */;
+			productType = "com.apple.product-type.tool";
+		};
 		EFBC533B29DFB4EA00334182 /* Demo */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = EFBC534B29DFB4EB00334182 /* Build configuration list for PBXNativeTarget "Demo" */;
@@ -130,9 +181,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1430;
+				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					3044B28B2D616DC90078FE49 = {
+						CreatedOnToolsVersion = 16.2;
+					};
 					EFBC533B29DFB4EA00334182 = {
 						CreatedOnToolsVersion = 14.3;
 					};
@@ -147,11 +201,15 @@
 				Base,
 			);
 			mainGroup = EFBC533329DFB4EA00334182;
+			packageReferences = (
+				3044B2932D616DDE0078FE49 /* XCLocalSwiftPackageReference "../../OpenAI" */,
+			);
 			productRefGroup = EFBC533D29DFB4EA00334182 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				EFBC533B29DFB4EA00334182 /* Demo */,
+				3044B28B2D616DC90078FE49 /* MacCommand */,
 			);
 		};
 /* End PBXProject section */
@@ -169,6 +227,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		3044B2882D616DC90078FE49 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EFBC533829DFB4EA00334182 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -184,6 +249,41 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		3044B2902D616DC90078FE49 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Y4G353X6Q5;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		3044B2912D616DC90078FE49 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Y4G353X6Q5;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		EFBC534929DFB4EB00334182 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -376,6 +476,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		3044B2922D616DC90078FE49 /* Build configuration list for PBXNativeTarget "MacCommand" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3044B2902D616DC90078FE49 /* Debug */,
+				3044B2912D616DC90078FE49 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		EFBC533729DFB4EA00334182 /* Build configuration list for PBXProject "Demo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -396,7 +505,18 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		3044B2932D616DDE0078FE49 /* XCLocalSwiftPackageReference "../../OpenAI" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../OpenAI;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		3044B2942D616DDE0078FE49 /* OpenAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = OpenAI;
+		};
 		EFBC536329DFEC2600334182 /* DemoChat */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DemoChat;
