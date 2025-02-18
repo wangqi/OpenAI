@@ -7,10 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3099B3502D641D47002309C9 /* DemoChat in Frameworks */ = {isa = PBXBuildFile; productRef = 3099B34F2D641D47002309C9 /* DemoChat */; };
 		EFBC534029DFB4EA00334182 /* DemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFBC533F29DFB4EA00334182 /* DemoApp.swift */; };
 		EFBC534429DFB4EB00334182 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EFBC534329DFB4EB00334182 /* Assets.xcassets */; };
 		EFBC534829DFB4EB00334182 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EFBC534729DFB4EB00334182 /* Preview Assets.xcassets */; };
-		EFBC536429DFEC2600334182 /* DemoChat in Frameworks */ = {isa = PBXBuildFile; productRef = EFBC536329DFEC2600334182 /* DemoChat */; };
 		EFBC536629DFFF3200334182 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFBC536529DFFF3200334182 /* ContentView.swift */; };
 		EFBC536829E0047400334182 /* APIKeyModalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFBC536729E0047400334182 /* APIKeyModalView.swift */; };
 		EFBC536C29E0105800334182 /* SwiftUIAdditions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFBC536B29E0105800334182 /* SwiftUIAdditions.swift */; };
@@ -60,7 +60,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EFBC536429DFEC2600334182 /* DemoChat in Frameworks */,
+				3099B3502D641D47002309C9 /* DemoChat in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -165,7 +165,7 @@
 			);
 			name = Demo;
 			packageProductDependencies = (
-				EFBC536329DFEC2600334182 /* DemoChat */,
+				3099B34F2D641D47002309C9 /* DemoChat */,
 			);
 			productName = Demo;
 			productReference = EFBC533C29DFB4EA00334182 /* Demo.app */;
@@ -200,6 +200,7 @@
 			mainGroup = EFBC533329DFB4EA00334182;
 			packageReferences = (
 				3044B2932D616DDE0078FE49 /* XCLocalSwiftPackageReference "../../OpenAI" */,
+				3099B34E2D641D47002309C9 /* XCLocalSwiftPackageReference "DemoChat" */,
 			);
 			productRefGroup = EFBC533D29DFB4EA00334182 /* Products */;
 			projectDirPath = "";
@@ -507,10 +508,14 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../OpenAI;
 		};
+		3099B34E2D641D47002309C9 /* XCLocalSwiftPackageReference "DemoChat" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = DemoChat;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		EFBC536329DFEC2600334182 /* DemoChat */ = {
+		3099B34F2D641D47002309C9 /* DemoChat */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DemoChat;
 		};
