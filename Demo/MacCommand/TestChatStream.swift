@@ -48,21 +48,26 @@ public func testChatStreamTask(
     print("Setup query: \(query)")
 
     print("\nStart testChatStreamTask test...\n")
+    var totalTokens = 0
+    var content = ""
+    var totalDuration: Double = 0.0
     openAI.chatsStream(query: query)
         .sink { result in
             switch result {
             case .finished:
                 print("\nChat stream completed.")
+                print("Response: \(content)")
+                print("duration: \(totalDuration), totalTokens: \(totalTokens)")
             case .failure(let error):
                 print("\nError:", error)
             }
         } receiveValue: { response in
-            print("Response: \(response)")
+            // print("Response: \(response)")
             let now = Date().timeIntervalSince1970
-            var content = ""
-            var totalDuration: Double = 0.0
             do {
-                content = try response.get().choices.first?.delta.content ?? ""
+                let result = try response.get()
+                content += result.choices.first?.delta.content ?? ""
+                totalTokens += result.usage?.totalTokens ?? 0
             } catch {
                 content = "Failed to get response: \(error)"
             }
@@ -72,7 +77,6 @@ public func testChatStreamTask(
             } catch {
                 totalDuration = 0.0
             }
-            print("Response: \(content), duration: \(totalDuration)")
         }
         .store(in: &cancellables)
 }

@@ -8,41 +8,155 @@
 import Foundation
 import OpenAI
 
-// Retrieve the token from the environment
-guard let token = ProcessInfo.processInfo.environment["OPENAI_API_TOKEN"], !token.isEmpty else {
-    fatalError("Missing API Token. Set OPENAI_API_TOKEN in your environment.")
+// Provider configuration structure
+struct Provider: Codable {
+    let name: String
+    let apiKey: String
+    let scheme: String
+    let host: String
+    let port: Int
+    let basePath: String
+    let defaultModel: String
+    let organizationId: String
+}
+
+struct ProvidersConfig: Codable {
+    let providers: [Provider]
+}
+
+// Load providers from JSON configuration file
+func loadProviders() -> [Provider] {
+    let currentDirectory = FileManager.default.currentDirectoryPath
+    print("Current directory: \(currentDirectory)")
+    
+    // Try to use an absolute path if the file can't be found in the current directory
+    let fileURL = URL(fileURLWithPath: currentDirectory)
+        .appendingPathComponent("providers.json")
+    
+    let absolutePath = "/Users/wangqi/disk/projects/ai/ios/aiassistant/thirdparty/OpenAI/Demo/MacCommand/providers.json"
+    let absoluteURL = URL(fileURLWithPath: absolutePath)
+    
+    do {
+        // First try with the current directory path
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            let data = try Data(contentsOf: fileURL)
+            let config = try JSONDecoder().decode(ProvidersConfig.self, from: data)
+            return config.providers
+        } else {
+            // If not found, try with the absolute path
+            print("Using absolute path: \(absolutePath)")
+            let data = try Data(contentsOf: absoluteURL)
+            let config = try JSONDecoder().decode(ProvidersConfig.self, from: data)
+            return config.providers
+        }
+    } catch {
+        print("Error loading providers configuration: \(error)")
+        return []
+    }
+}
+
+// Display available providers and let user select one
+func selectProvider(providers: [Provider]) -> Provider? {
+    print("\nAvailable AI Service Providers:")
+    for (index, provider) in providers.enumerated() {
+        print("\(index + 1). \(provider.name)")
+    }
+    
+    print("\nEnter the number of the provider you want to use:")
+    guard let input = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines),
+          let selection = Int(input),
+          selection > 0 && selection <= providers.count else {
+        print("Invalid selection.")
+        return nil
+    }
+    
+    return providers[selection - 1]
+}
+
+// Function to change the model
+func changeModel() -> String {
+    print("\nEnter the name of the model you want to use:")
+    guard let input = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines), !input.isEmpty else {
+        print("Invalid model name.")
+        return ""
+    }
+    return input
+}
+
+// Function to change the prompt
+func changePrompt() -> String {
+    print("\nEnter the new prompt:")
+    guard let input = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines), !input.isEmpty else {
+        print("Invalid prompt.")
+        return ""
+    }
+    return input
+}
+
+// Function to change the system prompt
+func changeSystemPrompt() -> String {
+    print("\nEnter the new system prompt:")
+    guard let input = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines), !input.isEmpty else {
+        print("Invalid system prompt.")
+        return ""
+    }
+    return input
 }
 
 // Parameters
 let repeat_penalty: Double = 1.1
 let temp: Double = 0.7
 let topP = 0.9
-// let model = "gpt-4o-mini"
-let model = "o3-mini"
 let system_prompt = "You are a friendly AI assistant."
 
-let configuration = OpenAI.Configuration(token: token, organizationIdentifier: "", timeoutInterval: 60.0)
+// Load providers from configuration file
+let providers = loadProviders()
+guard !providers.isEmpty else {
+    fatalError("No providers found in configuration file.")
+}
+
+// Let user select a provider
+guard let selectedProvider = selectProvider(providers: providers) else {
+    fatalError("Provider selection failed.")
+}
+
+print("Selected provider: \(selectedProvider.name)")
+let model = selectedProvider.defaultModel
+
+// Initialize OpenAI with the selected provider's configuration
+let configuration = OpenAI.Configuration(
+    token: selectedProvider.apiKey,
+    host: selectedProvider.host,
+    port: selectedProvider.port,
+    scheme: selectedProvider.scheme,
+    basePath: selectedProvider.basePath
+)
 let openAI = OpenAI(configuration: configuration)
-print("Connect to OpenAI")
+print("Connected to \(selectedProvider.name)")
 
 let prompt = "Using the numbers [19, 36, 55, 7], create an equation that equals 65."
 
 // Interactive user input loop
+print("\nEnter '1' to run the chat task, '2' for stream closure task, '3' for chat task, '4' to list models, '5' to change model, '6' to change prompt, '7' to change system prompt, or '0' to exit:")
 func startInteractiveLoop() {
+    var currentModel = model
+    var currentPrompt = prompt
+    var currentSystemPrompt = system_prompt
+    
     while true {
-        print("\nEnter '1' to run the chat task, or '0' to exit:")
         guard let input = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines) else {
             continue
         }
+        print("> \(input)")
 
         switch input {
         case "1":
             Task {
                 await testChatStreamTask(
                     openAI: openAI,
-                    model: model,
-                    prompt: prompt,
-                    systemPrompt: system_prompt,
+                    model: currentModel,
+                    prompt: currentPrompt,
+                    systemPrompt: currentSystemPrompt,
                     repeatPenalty: repeat_penalty,
                     temperature: temp,
                     topP: topP
@@ -52,9 +166,9 @@ func startInteractiveLoop() {
             Task {
                 await testChatStreamClosureTask(
                     openAI: openAI,
-                    model: model,
-                    prompt: prompt,
-                    systemPrompt: system_prompt,
+                    model: currentModel,
+                    prompt: currentPrompt,
+                    systemPrompt: currentSystemPrompt,
                     repeatPenalty: repeat_penalty,
                     temperature: temp,
                     topP: topP
@@ -64,19 +178,48 @@ func startInteractiveLoop() {
             Task {
                 await testChatTask(
                     openAI: openAI,
-                    model: model,
-                    prompt: prompt,
-                    systemPrompt: system_prompt,
+                    model: currentModel,
+                    prompt: currentPrompt,
+                    systemPrompt: currentSystemPrompt,
                     repeatPenalty: repeat_penalty,
                     temperature: temp,
                     topP: topP
                 )
             }
+        case "4":
+            Task {
+                openAI.models { result in
+                    do {
+                        let modelList = try result.get().data
+                        print("Model list: \n\(modelList)")
+                    } catch {
+                        print("Failed to fetch model list: \(error)")
+                    }
+                }
+            }
+        case "5":
+            let newModel = changeModel()
+            if !newModel.isEmpty {
+                currentModel = newModel
+                print("Model changed to: \(currentModel)")
+            }
+        case "6":
+            let newPrompt = changePrompt()
+            if !newPrompt.isEmpty {
+                currentPrompt = newPrompt
+                print("Prompt changed to: \(currentPrompt)")
+            }
+        case "7":
+            let newSystemPrompt = changeSystemPrompt()
+            if !newSystemPrompt.isEmpty {
+                currentSystemPrompt = newSystemPrompt
+                print("System prompt changed to: \(currentSystemPrompt)")
+            }
         case "0":
             print("Exiting...")
             exit(0)
         default:
-            print("Invalid input. Please enter '1' to run or '0' to exit.")
+            print("Invalid input. Please enter '1' to run chat stream, '2' for stream closure, '3' for chat, '4' to list models, '5' to change model, '6' to change prompt, '7' to change system prompt, or '0' to exit.")
         }
     }
 }
