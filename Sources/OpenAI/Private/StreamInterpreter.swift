@@ -37,7 +37,7 @@ class StreamInterpreter<ResultType: Codable> {
             .components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { $0.isEmpty == false }
-        
+
         var jsonObjects: [String] = []
         for line in chunkLines {
 

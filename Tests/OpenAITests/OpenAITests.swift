@@ -294,6 +294,14 @@ class OpenAITests: XCTestCase {
 
         XCTAssertEqual(query.speed, "\(4.0)")
     }
+    
+    func testAudioCreateSpeech() async throws {
+        let query = AudioSpeechQuery(model: .tts_1, input: "Hello, world!", voice: .alloy, speed: nil)
+        let data = Data(repeating: 11, count: 11)
+        urlSession.dataTask = .successful(with: data)
+        let response = try await openAI.audioCreateSpeech(query: query)
+        XCTAssertEqual(response.audio, data)
+    }
 
     func testAudioSpeechError() async throws {
         let query = AudioSpeechQuery(model: .tts_1, input: "Hello, world!", voice: .alloy, responseFormat: .mp3, speed: 1.0)
@@ -440,6 +448,13 @@ class OpenAITests: XCTestCase {
         XCTAssertEqual(chatsURL, URL(string: "https://api.openai.com:443/v1/chat/completions"))
     }
     
+    func testDefaultHostURLBuiltWithCustomBasePath() {
+        let configuration = OpenAI.Configuration(token: "foo", organizationIdentifier: "bar", basePath: "/api/v9527", timeoutInterval: 14)
+        let openAI = OpenAI(configuration: configuration, session: self.urlSession)
+        let chatsURL = openAI.buildURL(path: .chats)
+        XCTAssertEqual(chatsURL, URL(string: "https://api.openai.com:443/api/v9527/chat/completions"))
+    }
+    
     func testCustomURLBuiltWithPredefinedPath() {
         let configuration = OpenAI.Configuration(token: "foo", organizationIdentifier: "bar", host: "my.host.com", timeoutInterval: 14)
         let openAI = OpenAI(configuration: configuration, session: self.urlSession)
@@ -455,7 +470,7 @@ class OpenAITests: XCTestCase {
             timeoutInterval: 14
         )
         let openAI = OpenAI(configuration: configuration, session: URLSessionMock())
-        XCTAssertEqual(openAI.buildURL(path: "foo"), URL(string: "https://bizbaz.com:443/foo"))
+        XCTAssertEqual(openAI.buildURL(path: "foo"), URL(string: "https://bizbaz.com:443/v1/foo"))
     }
     
     func testCustomURLBuiltWithCustomBasePath() {
