@@ -132,12 +132,25 @@ let configuration = OpenAI.Configuration(
     basePath: selectedProvider.basePath
 )
 let openAI = OpenAI(configuration: configuration)
-print("Connected to \(selectedProvider.name)")
+print("Connected to \(selectedProvider.name). host: \(selectedProvider.host), port: \(selectedProvider.port), scheme: \(selectedProvider.scheme), basePath: \(selectedProvider.basePath)")
 
-let prompt = "Using the numbers [19, 36, 55, 7], create an equation that equals 65."
+let prompt = "Tell me the latest stock price for QQQ"
+
+let console_help = """
+Please enter 
+'1' to run chat stream, 
+'2' for stream closure, 
+'3' for chat, 
+'4' to list models,
+'5' to change model, 
+'6' to change prompt, 
+'7' to change system prompt, 
+'8' to run chat stream search, 
+or '0' to exit.")
+"""
 
 // Interactive user input loop
-print("\nEnter '1' to run the chat task, '2' for stream closure task, '3' for chat task, '4' to list models, '5' to change model, '6' to change prompt, '7' to change system prompt, or '0' to exit:")
+print(console_help)
 func startInteractiveLoop() {
     var currentModel = model
     var currentPrompt = prompt
@@ -215,11 +228,23 @@ func startInteractiveLoop() {
                 currentSystemPrompt = newSystemPrompt
                 print("System prompt changed to: \(currentSystemPrompt)")
             }
+        case "8":
+            Task {
+                await testChatStreamSearchTask(
+                    openAI: openAI,
+                    model: currentModel,
+                    prompt: currentPrompt,
+                    systemPrompt: currentSystemPrompt,
+                    repeatPenalty: repeat_penalty,
+                    temperature: temp,
+                    topP: topP
+                )
+            }
         case "0":
             print("Exiting...")
             exit(0)
         default:
-            print("Invalid input. Please enter '1' to run chat stream, '2' for stream closure, '3' for chat, '4' to list models, '5' to change model, '6' to change prompt, '7' to change system prompt, or '0' to exit.")
+            print(console_help)
         }
     }
 }
