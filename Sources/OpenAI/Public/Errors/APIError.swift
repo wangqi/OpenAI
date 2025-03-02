@@ -70,7 +70,7 @@ extension APIErrorResponse: LocalizedError {
 }
 
 // wangqi defined api error
-public struct APICommonError: Error, Decodable, Equatable {
+public struct APICommonError: Error, Decodable, Equatable, CustomStringConvertible {
     let code: String
     let error: String
     
@@ -89,5 +89,15 @@ public struct APICommonError: Error, Decodable, Equatable {
       
       self.error = try container.decode(String.self, forKey: .error)
       self.code = try container.decode(String.self, forKey: .code)
+    }
+
+    // Provides a user-friendly error message like system errors
+    public var localizedDescription: String {
+        return "Error \(code): \(error)"
+    }
+
+    // Allows String(error) to return localizedDescription
+    public var description: String {
+        return localizedDescription
     }
 }
