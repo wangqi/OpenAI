@@ -68,3 +68,26 @@ extension APIErrorResponse: LocalizedError {
         return error.errorDescription
     }
 }
+
+// wangqi defined api error
+public struct APICommonError: Error, Decodable, Equatable {
+    let code: String
+    let error: String
+    
+    enum CodingKeys: CodingKey {
+        case code
+        case error
+    }
+    
+    public init(code: String, error: String) {
+      self.error = error
+      self.code = code
+    }
+    
+    public init(from decoder: Decoder) throws {
+      let container = try decoder.container(keyedBy: CodingKeys.self)
+      
+      self.error = try container.decode(String.self, forKey: .error)
+      self.code = try container.decode(String.self, forKey: .code)
+    }
+}
