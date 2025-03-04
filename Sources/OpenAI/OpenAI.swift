@@ -223,7 +223,7 @@ extension OpenAI {
         var cancellable = cancellablesFactory.makeTaskCanceller()
         do {
             let request = try request.build(configuration: configuration)
-            let task = makeDataTask(forRequest: request, completion: completion)
+            let task = makeDebugDataTask(forRequest: request, completion: completion)
             cancellable.task = task
             task.resume()
         } catch {
@@ -239,18 +239,36 @@ extension OpenAI {
             let session = StreamingSession<ResultType>(urlRequest: request)
             cancellable.session = session
             session.onReceiveContent = {_, object in
+                // Debug print each chunk received
+                // if let jsonData = try? JSONEncoder().encode(object),
+                //    let jsonString = String(data: jsonData, encoding: .utf8) {
+                //     print("[OpenAI Debug] Streaming chunk: \(jsonString)")
+                // }
                 onResult(.success(object))
             }
             session.onProcessingError = {_, error in
+                print("[OpenAI Debug] Streaming error: \(error)")
                 onResult(.failure(error))
             }
             session.onComplete = { [weak self] object, error in
+                if let error = error {
+                    print("[OpenAI Debug] Streaming completed with error: \(error)")
+                } else {
+                    print("[OpenAI Debug] Streaming completed successfully")
+                }
                 self?.streamingSessions.removeAll(where: { $0 == object })
                 completion?(error)
             }
+            // Debug the raw data received in StreamingSession
+            // session.onReceiveRawData = { data in
+            //     if let stringContent = String(data: data, encoding: .utf8) {
+            //         print("[OpenAI Debug] Raw streaming data: \(stringContent)")
+            //     }
+            // }
             session.perform()
             streamingSessions.append(session)
         } catch {
+            print("[OpenAI Debug] Failed to build request: \(error)")
             completion?(error)
         }
         return cancellable
@@ -292,6 +310,35 @@ extension OpenAI {
                 completion(.success(try decoder.decode(ResultType.self, from: data)))
             } catch {
                 let apiError = try? decoder.decode(APICommonError.self, from: data)
+                completion(.failure(apiError ?? error))
+            }
+        }
+    }
+    
+    func makeDebugDataTask<ResultType: Codable>(forRequest request: URLRequest, completion: @escaping (Result<ResultType, Error>) -> Void) -> URLSessionDataTaskProtocol {
+        session.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("[OpenAI Debug] Error: \(error)")
+                return completion(.failure(error))
+            }
+            guard let data = data else {
+                print("[OpenAI Debug] Error: Empty data")
+                return completion(.failure(OpenAIError.emptyData))
+            }
+            
+            // Debug print response data as string
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("[OpenAI Debug] Response: \(responseString)")
+            } else {
+                print("[OpenAI Debug] Response: Unable to convert data to string")
+            }
+            
+            let decoder = JSONDecoder()
+            do {
+                completion(.success(try decoder.decode(ResultType.self, from: data)))
+            } catch {
+                let apiError = try? decoder.decode(APICommonError.self, from: data)
+                print("[OpenAI Debug] Decoding error: \(error)")
                 completion(.failure(apiError ?? error))
             }
         }
