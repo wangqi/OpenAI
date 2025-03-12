@@ -134,7 +134,10 @@ let configuration = OpenAI.Configuration(
 let openAI = OpenAI(configuration: configuration)
 print("Connected to \(selectedProvider.name). host: \(selectedProvider.host), port: \(selectedProvider.port), scheme: \(selectedProvider.scheme), basePath: \(selectedProvider.basePath)")
 
-let prompt = "Tell me the latest stock price for QQQ"
+//let prompt = "Tell me the latest stock price for QQQ"
+let prompt = """
+模拟战争策略游戏，玩家养成多支弓步骑队伍，玩家攻城推进主要以公会成员的合作为基础，战斗方式以玩家指挥一支或多支队伍的微操为战斗玩法，请给出玩家指挥、操作多支队伍并与公会其他队友合作与敌对公会对抗的最佳游戏规则、赛季目标、大地图策略和养成方式
+"""
 
 let console_help = """
 Please enter 

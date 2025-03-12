@@ -51,32 +51,44 @@ public func testChatStreamTask(
     var totalTokens = 0
     var content = ""
     var totalDuration: Double = 0.0
-    openAI.chatsStream(query: query)
-        .sink { result in
-            switch result {
-            case .finished:
-                print("\nChat stream completed.")
-                print("Response: \(content)")
-                print("duration: \(totalDuration), totalTokens: \(totalTokens)")
-            case .failure(let error):
-                print("\nError:", error)
+    let semaphore = DispatchSemaphore(value: 0) // ✅ Prevents early exit
+    var cancellables = Set<AnyCancellable>() // ✅ Prevents premature deallocation
+
+    await withCheckedContinuation { continuation in
+        openAI.chatsStream(query: query)
+            .sink { result in
+                switch result {
+                case .finished:
+                    print("\nChat stream completed.")
+                    print("Response: \(content)")
+                    print("duration: \(totalDuration), totalTokens: \(totalTokens)")
+                    continuation.resume()  // ✅ Ensures proper completion
+                    semaphore.signal()      // ✅ Unblocks thread
+                case .failure(let error):
+                    print("\nError:", error)
+                    continuation.resume()  // ✅ Ensures proper completion even on failure
+                    semaphore.signal()      // ✅ Unblocks thread
+                }
+            } receiveValue: { response in
+                let now = Date().timeIntervalSince1970
+                do {
+                    let result = try response.get()
+                    content += result.choices.first?.delta.content ?? ""
+                    totalTokens += result.usage?.totalTokens ?? 0
+                } catch {
+                    content = "Failed to get response: \(error)"
+                }
+                do {
+                    let createTime = try response.get().created
+                    totalDuration = now - createTime
+                } catch {
+                    totalDuration = 0.0
+                }
             }
-        } receiveValue: { response in
-            // print("Response: \(response)")
-            let now = Date().timeIntervalSince1970
-            do {
-                let result = try response.get()
-                content += result.choices.first?.delta.content ?? ""
-                totalTokens += result.usage?.totalTokens ?? 0
-            } catch {
-                content = "Failed to get response: \(error)"
-            }
-            do {
-                let createTime = try response.get().created
-                totalDuration = now - createTime
-            } catch {
-                totalDuration = 0.0
-            }
-        }
-        .store(in: &cancellables)
+            .store(in: &cancellables)
+
+        // ✅ Wait for stream completion to prevent premature deallocation
+        semaphore.wait()
+    }
+        
 }
