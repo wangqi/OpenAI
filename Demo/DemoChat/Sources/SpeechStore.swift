@@ -42,7 +42,7 @@ public final class SpeechStore: ObservableObject {
                                           format: query.responseFormat?.rawValue ?? AudioSpeechQuery.AudioSpeechResponseFormat.mp3.rawValue)
             audioObjects.append(audioObject)
         } catch {
-            print("[SpeechStore] createSpeech error: \(error.localizedDescription)")
+            print(error.localizedDescription)
         }
     }
     

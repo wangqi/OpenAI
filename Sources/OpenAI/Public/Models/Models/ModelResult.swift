@@ -25,4 +25,14 @@ public struct ModelResult: Codable, Equatable {
         case object
         case ownedBy = "owned_by"
     }
+    
+    // wangqi make created optional
+    // Custom decoder to provide a default value for `created`
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        created = try container.decodeIfPresent(TimeInterval.self, forKey: .created) ?? 0  // Default to `0`
+        object = try container.decode(String.self, forKey: .object)
+        ownedBy = try container.decode(String.self, forKey: .ownedBy)
+    }
 }
