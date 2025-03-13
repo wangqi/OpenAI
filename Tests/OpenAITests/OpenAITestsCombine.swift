@@ -76,7 +76,7 @@ final class OpenAITestsCombine: XCTestCase {
     }
     
     func testAudioCreateSpeech() throws {
-        let query = AudioSpeechQuery(model: .tts_1, input: "Hello, world!", voice: .alloy, speed: nil)
+        let query = AudioSpeechQuery(model: .tts_1, input: "Hello, world!", voice: .alloy)
         let data = Data(repeating: 10, count: 10)
         urlSession.dataTask = .successful(with: data)
         let response = try awaitPublisher(openAI.audioCreateSpeech(query: query), timeout: 1)
@@ -242,7 +242,7 @@ final class OpenAITestsCombine: XCTestCase {
     
     private func makeChatsResult() -> ChatResult {
         .init(
-            id: "id-12312", object: "foo", created: 100, model: .gpt3_5Turbo,
+            id: "id-12312", object: "foo", created: 100, model: .gpt3_5Turbo, citations: nil,
             choices: [
                 .init(index: 0, logprobs: nil, message: .system(.init(content: "bar")), finishReason: "baz"),
                 .init(index: 0, logprobs: nil, message: .user(.init(content: .string("bar1"))), finishReason: "baz1"),
