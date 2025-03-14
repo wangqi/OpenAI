@@ -68,6 +68,22 @@ public struct ChatStreamResult: Codable, Equatable {
                 case role
                 case toolCalls = "tool_calls"
             }
+            
+            public init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                content = try container.decodeIfPresent(String.self, forKey: .content)
+                reasoningContent = try container.decodeIfPresent(String.self, forKey: .reasoningContent)
+                role = try container.decodeIfPresent(Role.self, forKey: .role)
+                
+                // Explicitly decode tool_calls to ensure it's not missed
+                if container.contains(.toolCalls) {
+                    toolCalls = try container.decode([ChoiceDeltaToolCall].self, forKey: .toolCalls)
+                    print("[DEBUG] Successfully decoded toolCalls: \(String(describing: toolCalls))")
+                } else {
+                    toolCalls = nil
+                    print("[DEBUG] No toolCalls found in container")
+                }
+            }
         }
 
         /// The index of the choice in the list of choices.
