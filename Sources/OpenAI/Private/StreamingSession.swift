@@ -14,6 +14,7 @@ final class StreamingSession<ResultType: Codable, Interpreter: StreamInterpreter
     var onReceiveContent: ((StreamingSession, ResultType) -> Void)?
     var onProcessingError: ((StreamingSession, Error) -> Void)?
     var onComplete: ((StreamingSession, Error?) -> Void)?
+    var onReceiveRawData: ((Data) -> Void)?
     
     private let urlRequest: URLRequest
     private lazy var urlSession: URLSession = {
@@ -49,6 +50,9 @@ final class StreamingSession<ResultType: Codable, Interpreter: StreamInterpreter
     }
     
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        // Call the raw data callback if set
+        onReceiveRawData?(data)
+        
         do {
             try interpreter.processData(data)
         } catch {
