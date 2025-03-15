@@ -81,6 +81,7 @@ public func testChatStreamSearchTask(
             let now = Date().timeIntervalSince1970
             do {
                 let result = try response.get()
+                let toolCalls = result.choices.first?.delta.toolCalls ?? []
                 content += result.choices.first?.delta.content ?? ""
                 if let finishReason = result.choices.first?.finishReason {
                     print("Result: ")
