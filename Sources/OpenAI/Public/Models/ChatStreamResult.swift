@@ -78,10 +78,8 @@ public struct ChatStreamResult: Codable, Equatable {
                 // Explicitly decode tool_calls to ensure it's not missed
                 if container.contains(.toolCalls) {
                     toolCalls = try container.decode([ChoiceDeltaToolCall].self, forKey: .toolCalls)
-                    print("[DEBUG] Successfully decoded toolCalls: \(String(describing: toolCalls))")
                 } else {
                     toolCalls = nil
-                    print("[DEBUG] No toolCalls found in container")
                 }
             }
         }
