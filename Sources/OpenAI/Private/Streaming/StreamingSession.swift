@@ -21,6 +21,9 @@ final class StreamingSession<Interpreter: StreamInterpreter>: NSObject, Identifi
     private let onComplete: (@Sendable (StreamingSession, Error?) -> Void)?
     private let interpreter: Interpreter
     private let sslDelegate: SSLDelegateProtocol?
+
+    // wangqi 2025-03-23
+    private var onReceiveRawData: ((Data) -> Void)?
     
     init(
         urlSessionFactory: URLSessionFactory = FoundationURLSessionFactory(),
@@ -52,6 +55,9 @@ final class StreamingSession<Interpreter: StreamInterpreter>: NSObject, Identifi
     }
     
     func urlSession(_ session: any URLSessionProtocol, dataTask: any URLSessionDataTaskProtocol, didReceive data: Data) {
+        // Call the raw data callback if set
+        // wangqi 2025-03-23
+        onReceiveRawData?(data)
         interpreter.processData(data)
     }
 

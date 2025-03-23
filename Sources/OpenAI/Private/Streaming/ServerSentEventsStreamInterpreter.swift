@@ -45,9 +45,14 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
             return
         }
         
-        executionSerializer.dispatch {
-            self.processJSON(from: stringContent)
-        }
+        //When errors happens, the main urlSession will complete before error .onError() is called.
+        //Disable multiple thread here.
+        //wangqi 2023-03-25
+        
+        //executionSerializer.dispatch {
+        //    self.processJSON(from: stringContent)
+        //}
+        self.processJSON(from: stringContent)
     }
     
     private func processJSON(from stringContent: String) {
@@ -60,6 +65,9 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
             .components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { $0.isEmpty == false }
+        
+        //wangqi added 2025-03-23
+        var fullJsonString: String = ""
 
         var jsonObjects: [String] = []
         for line in chunkLines {
@@ -72,7 +80,19 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
                 .components(separatedBy: "data:")
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { $0.isEmpty == false }
-            jsonObjects.append(contentsOf: jsonData)
+            
+            //jsonObjects.append(contentsOf: jsonData)
+            // Check if jsonData is a valid JSON
+            // wangqi 2025-03-23
+            if decodeFirstMatching(jsonString: jsonData.joined(), as: [ResultType.self, APIErrorResponse.self]) != nil {
+                jsonObjects.append(contentsOf: jsonData)
+            } else {
+                fullJsonString += jsonData.joined()
+            }
+        }
+        //In case responses are not valid json
+        if jsonObjects.isEmpty {
+            jsonObjects.append(fullJsonString)
         }
 
         previousChunkBuffer = ""
@@ -97,6 +117,12 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
                 if let decoded = try? decoder.decode(APIErrorResponse.self, from: jsonData) {
                     onError?(decoded)
                     return
+                } else if let errorString = String(data: jsonData, encoding: .utf8) {
+                    // Fallback: construct new error response from plain string
+                    // wangqi 2025-03-23
+                    let fallbackError = APICommonError(code: "11", error: fullJsonString)
+                    onError?(fallbackError)
+                    return
                 } else if index == jsonObjects.count - 1 {
                     previousChunkBuffer = "data: \(jsonContent)" // Chunk ends in a partial JSON
                 } else {
@@ -104,5 +130,18 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
                 }
             }
         }
+    }
+    
+    // Test if the mulitple Decodable can be used to parse the jsonString
+    // wangqi 2025-03-23
+    func decodeFirstMatching(jsonString: String, as types: [Decodable.Type]) -> Decodable? {
+        guard let data = jsonString.data(using: .utf8) else { return nil }
+        let decoder = JSONDecoder()
+        for type in types {
+            if let decoded = try? decoder.decode(type, from: data) {
+                return decoded
+            }
+        }
+        return nil
     }
 }

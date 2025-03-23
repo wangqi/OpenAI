@@ -286,11 +286,17 @@ extension OpenAI {
             let session = streamingSessionFactory.makeServerSentEventsStreamingSession(urlRequest: urlRequest) { _, object in
                 onResult(.success(object))
             } onProcessingError: { _, error in
+                // wangqi 2025-03-23
+                print("[OpenAI Debug] Streaming error: \(error)")
                 onResult(.failure(error))
             } onComplete: { [weak self] session, error in
+                // wangqi 2025-03-23
+                if let error = error {
+                    print("[OpenAI Debug] Streaming completed with error: \(error)")
+                }
                 completion?(error)
                 self?.invalidateSession(session)
-            }
+            } 
             
             return runSession(session)
         } catch {
@@ -362,6 +368,36 @@ extension OpenAI {
         }
     }
     
+    // wangqi 2025-03-23
+    func makeDebugDataTask<ResultType: Codable>(forRequest request: URLRequest, completion: @escaping (Result<ResultType, Error>) -> Void) -> URLSessionDataTaskProtocol {
+        session.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("[OpenAI Debug] Error: \(error)")
+                return completion(.failure(error))
+            }
+            guard let data = data else {
+                print("[OpenAI Debug] Error: Empty data")
+                return completion(.failure(OpenAIError.emptyData))
+            }
+            
+            // Debug print response data as string
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("[OpenAI Debug] Response: \(responseString)")
+            } else {
+                print("[OpenAI Debug] Response: Unable to convert data to string")
+            }
+            
+            let decoder = JSONDecoder()
+            do {
+                completion(.success(try decoder.decode(ResultType.self, from: data)))
+            } catch {
+                let apiError = try? decoder.decode(APICommonError.self, from: data)
+                print("[OpenAI Debug] Decoding error: \(error)")
+                completion(.failure(apiError ?? error))
+            }
+        }
+    }
+
     func makeRawResponseDataTask(forRequest request: URLRequest, completion: @escaping @Sendable (Result<Data, Error>) -> Void) -> URLSessionDataTaskProtocol {
         session.dataTask(with: request) { data, _, error in
             if let error = error {
