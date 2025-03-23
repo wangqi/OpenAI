@@ -261,7 +261,8 @@ extension OpenAI {
             }
             session.onProcessingError = { _, error in
                 print("[OpenAI Debug] Streaming error: \(error)")
-                onResult(.failure(error))
+                // onResult(.failure(error))
+                completion?(error)
             }
             session.onComplete = { [weak self] object, error in
                 if let error = error {
@@ -273,11 +274,11 @@ extension OpenAI {
                 completion?(error)
             }
             // Debug the raw data received in StreamingSession
-            // session.onReceiveRawData = { data in
-            //     if let stringContent = String(data: data, encoding: .utf8) {
-            //         print("[OpenAI Debug] Raw streaming data: \(stringContent)")
-            //     }
-            // }
+            session.onReceiveRawData = { data in
+                if let stringContent = String(data: data, encoding: .utf8) {
+                    print("[OpenAI Debug] Raw streaming data: \(stringContent)")
+                }
+            }
             session.perform()
             streamingSessions.append(session)
         } catch {
