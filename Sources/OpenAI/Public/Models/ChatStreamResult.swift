@@ -71,6 +71,7 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
             
             // Add a init() function to explicitly decode tool_calls in ChatStreamResult
             // wangqi 2025-03-23
+            /*
             public init(from decoder: Decoder) throws {
                 let container = try decoder.container(keyedBy: CodingKeys.self)
                 content = try container.decodeIfPresent(String.self, forKey: .content)
@@ -86,6 +87,7 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                     // print("[DEBUG] No toolCalls found in container")
                 }
             }
+            */
         }
 
         /// The index of the choice in the list of choices.
