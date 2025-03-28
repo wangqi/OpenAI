@@ -26,13 +26,17 @@ public struct ModelResult: Codable, Equatable, Sendable {
         case ownedBy = "owned_by"
     }
     
-    // Custom decoder to provide a default value for `created`
+    // Custom decoder to provide a default value for created
     // wangqi 2025-03-23
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
-        created = try container.decodeIfPresent(TimeInterval.self, forKey: .created) ?? 0  // Default to `0`
-        object = try container.decode(String.self, forKey: .object)
-        ownedBy = try container.decode(String.self, forKey: .ownedBy)
+        created = try container.decodeIfPresent(TimeInterval.self, forKey: .created) ?? 0  // Default to 0
+        // For OpenRouter compatibility
+        // wangqi 2025-03-28
+        //object = try container.decode(String.self, forKey: .object)
+        //ownedBy = try container.decode(String.self, forKey: .ownedBy)
+        object = try container.decodeIfPresent(String.self, forKey: .object) ?? id
+        ownedBy = try container.decodeIfPresent(String.self, forKey: .ownedBy) ?? ""
     }
 }
