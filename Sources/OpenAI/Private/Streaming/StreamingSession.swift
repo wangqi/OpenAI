@@ -21,15 +21,16 @@ final class StreamingSession<Interpreter: StreamInterpreter>: NSObject, Identifi
     private let onComplete: (@Sendable (StreamingSession, Error?) -> Void)?
     private let interpreter: Interpreter
     private let sslDelegate: SSLDelegateProtocol?
-
     // wangqi 2025-03-23
     private var onReceiveRawData: ((Data) -> Void)?
-    
+    private let middlewares: [OpenAIMiddleware]
+
     init(
         urlSessionFactory: URLSessionFactory = FoundationURLSessionFactory(),
         urlRequest: URLRequest,
         interpreter: Interpreter,
         sslDelegate: SSLDelegateProtocol?,
+        middlewares: [OpenAIMiddleware],
         onReceiveContent: @escaping @Sendable (StreamingSession, ResultType) -> Void,
         onProcessingError: @escaping @Sendable (StreamingSession, Error) -> Void,
         onComplete: @escaping @Sendable (StreamingSession, Error?) -> Void
@@ -38,6 +39,7 @@ final class StreamingSession<Interpreter: StreamInterpreter>: NSObject, Identifi
         self.urlRequest = urlRequest
         self.interpreter = interpreter
         self.sslDelegate = sslDelegate
+        self.middlewares = middlewares
         self.onReceiveContent = onReceiveContent
         self.onProcessingError = onProcessingError
         self.onComplete = onComplete
@@ -58,6 +60,9 @@ final class StreamingSession<Interpreter: StreamInterpreter>: NSObject, Identifi
         // Call the raw data callback if set
         // wangqi 2025-03-23
         onReceiveRawData?(data)
+        let data = self.middlewares.reduce(data) { current, middleware in
+            middleware.interceptStreamingData(request: dataTask.originalRequest, current)
+        }
         interpreter.processData(data)
     }
 
