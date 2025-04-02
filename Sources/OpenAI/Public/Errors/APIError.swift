@@ -63,14 +63,11 @@ extension APIError: LocalizedError {
     }
 }
 
-public struct APIErrorResponse: Error, Decodable, Equatable {
+public struct APIErrorResponse: ErrorResponse {
     public let error: APIError
-}
-
-extension APIErrorResponse: LocalizedError {
     
     public var errorDescription: String? {
-        return error.errorDescription
+        error.errorDescription
     }
 }
 
@@ -85,24 +82,31 @@ public struct APICommonError: Error, Decodable, Equatable, CustomStringConvertib
     }
     
     public init(code: String, error: String) {
-      self.error = error
-      self.code = code
+        self.error = error
+        self.code = code
     }
     
     public init(from decoder: Decoder) throws {
-      let container = try decoder.container(keyedBy: CodingKeys.self)
-      
-      self.error = try container.decode(String.self, forKey: .error)
-      self.code = try container.decode(String.self, forKey: .code)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        self.error = try container.decode(String.self, forKey: .error)
+        self.code = try container.decode(String.self, forKey: .code)
     }
-
+    
     // Provides a user-friendly error message like system errors
     public var localizedDescription: String {
         return "Error \(code): \(error)"
     }
-
+    
     // Allows String(error) to return localizedDescription
     public var description: String {
         return localizedDescription
     }
+}
+
+public protocol ErrorResponse: Error, Decodable, Equatable, LocalizedError {
+    associatedtype Err: Error, Decodable, Equatable, LocalizedError
+    
+    var error: Err { get }
+    var errorDescription: String? { get }
 }
