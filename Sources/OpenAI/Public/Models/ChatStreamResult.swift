@@ -18,12 +18,34 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
             public let content: String?
             /// If the audio output modality is requested, this object contains data about the audio response from the model.
             public let audio: ChoiceDeltaAudio?
-            /// The reasoning content of the chunk message.
-            /// Only some model are supported, like DeepSeek-R1.
-            public let reasoningContent: String?
+
             /// The role of the author of this message.
             public let role: Self.Role?
             public let toolCalls: [Self.ChoiceDeltaToolCall]?
+
+            /// Value for `reasoning` field in response.
+            ///
+            /// Provided by:
+            /// - Gemini (in OpenAI compatibility mode)
+            ///   https://github.com/MacPaw/OpenAI/issues/283#issuecomment-2711396735
+            /// - OpenRouter
+            internal let _reasoning: String?
+
+            /// Value for `reasoning_content` field.
+            ///
+            /// Provided by:
+            /// - Deepseek
+            ///   https://api-docs.deepseek.com/api/create-chat-completion#responses
+            internal let _reasoningContent: String?
+
+            /// Reasoning content.
+            ///
+            /// Supported response fields:
+            /// - `reasoning` (Gemini, OpenRouter)
+            /// - `reasoning_content` (Deepseek)
+            public var reasoning: String? {
+                _reasoning ?? _reasoningContent
+            }
 
             public struct ChoiceDeltaAudio: Codable, Equatable, Sendable {
 
@@ -85,9 +107,10 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
             public enum CodingKeys: String, CodingKey {
                 case content
                 case audio
-                case reasoningContent = "reasoning_content"
                 case role
                 case toolCalls = "tool_calls"
+                case _reasoning = "reasoning"
+                case _reasoningContent = "reasoning_content"
             }
             
             // Add a init() function to explicitly decode tool_calls in ChatStreamResult
