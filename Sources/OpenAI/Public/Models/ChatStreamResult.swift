@@ -199,9 +199,14 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
     /// Can be more than one if `n` is greater than 1.
     public let choices: [Choice]
     /// This fingerprint represents the backend configuration that the model runs with. Can be used in conjunction with the `seed` request parameter to understand when backend changes have been made that might impact determinism.
+    // wangqi changed it to optional 2025-04-07
     public let systemFingerprint: String
     /// Usage statistics for the completion request.
     public let usage: ChatResult.CompletionUsage?
+    
+    /// Optionally store the "provider" field from the JSON.
+    // wangqi added it for OpenRouter 2025-04-07
+    public let provider: String?
 
     public enum CodingKeys: String, CodingKey {
         case id
@@ -212,11 +217,13 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
         case choices
         case systemFingerprint = "system_fingerprint"
         case usage
+        case provider
     }
     
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let parsingOptions = decoder.userInfo[.parsingOptions] as? ParsingOptions ?? []
+        //wangqi modified 2025-04-07. Set default ParsingOptions
+        let parsingOptions = decoder.userInfo[.parsingOptions] as? ParsingOptions ?? [.fillRequiredFieldIfKeyNotFound, .fillRequiredFieldIfValueNotFound]
         
         self.id = try container.decodeString(forKey: .id, parsingOptions: parsingOptions)
         self.object = try container.decodeString(forKey: .object, parsingOptions: parsingOptions)
@@ -225,6 +232,8 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
         self.citations = try container.decodeIfPresent([String].self, forKey: .citations)
         self.choices = try container.decode([ChatStreamResult.Choice].self, forKey: .choices)
         self.systemFingerprint = try container.decodeString(forKey: .systemFingerprint, parsingOptions: parsingOptions)
+        
         self.usage = try container.decodeIfPresent(ChatResult.CompletionUsage.self, forKey: .usage)
+        self.provider = try container.decodeIfPresent(String.self, forKey: .provider)
     }
 }
