@@ -115,6 +115,11 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
             do {
                 let object = try decoder.decode(ResultType.self, from: jsonData)
                 onEventDispatched?(object)
+            } catch DecodingError.dataCorrupted(_) {
+                // Ignore this specific error
+                let jsonString = String(data: jsonData, encoding: .utf8)
+                print("Warning: dataCorrupted, json: \(jsonString)")
+                print("It may be due to incomplete JSON data in the stream. Waiting for the next chunk...")
             } catch {
                 if let decoded = JSONResponseErrorDecoder(decoder: decoder).decodeErrorResponse(data: jsonData) {
                     onError?(decoded)
