@@ -1581,3 +1581,42 @@ public struct ChatToolCall: Codable, Equatable {
         self.function = function
     }
 }
+
+//wangqi 2025-04-12. For OpenRouter compatiblity, do not send those nil parameters.
+extension ChatQuery {
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(messages, forKey: .messages)
+        try container.encode(model, forKey: .model)
+        try container.encodeIfPresent(reasoningEffort, forKey: .reasoningEffort)
+        try container.encodeIfPresent(logitBias, forKey: .logitBias)
+        try container.encodeIfPresent(logprobs, forKey: .logprobs)
+        try container.encodeIfPresent(maxTokens, forKey: .maxTokens)
+        try container.encodeIfPresent(maxCompletionTokens, forKey: .maxCompletionTokens)
+        try container.encodeIfPresent(n, forKey: .n)
+        try container.encodeIfPresent(responseFormat, forKey: .responseFormat)
+        try container.encodeIfPresent(seed, forKey: .seed)
+        try container.encodeIfPresent(stop, forKey: .stop)
+        try container.encodeIfPresent(temperature, forKey: .temperature)
+        try container.encodeIfPresent(toolChoice, forKey: .toolChoice)
+        try container.encodeIfPresent(tools, forKey: .tools)
+        try container.encodeIfPresent(topLogprobs, forKey: .topLogprobs)
+        try container.encodeIfPresent(user, forKey: .user)
+        try container.encode(stream, forKey: .stream)
+        try container.encodeIfPresent(streamOptions, forKey: .streamOptions)
+        try container.encodeIfPresent(audioOptions, forKey: .audioOptions)
+        try container.encodeIfPresent(modalities, forKey: .modalities)
+
+        // Skip encoding these if nil
+        if let frequencyPenalty = frequencyPenalty {
+            try container.encode(frequencyPenalty, forKey: .frequencyPenalty)
+        }
+        if let presencePenalty = presencePenalty {
+            try container.encode(presencePenalty, forKey: .presencePenalty)
+        }
+        if let topP = topP {
+            try container.encode(topP, forKey: .topP)
+        }
+    }
+}
