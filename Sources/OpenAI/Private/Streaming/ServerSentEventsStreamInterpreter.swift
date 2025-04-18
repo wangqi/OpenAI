@@ -132,10 +132,13 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
                     onError?(decoded)
                     return
                 } else if let errorString = String(data: jsonData, encoding: .utf8) {
-                    // Fallback: construct new error response from plain string
-                    // wangqi 2025-03-23
+                    // This error is caused by partial JSON content due to streaming.
+                    // We just ignore it.
+                    // wangqi 2025-04-18
+                    /*
                     let fallbackError = APICommonError(code: "11", error: errorString)
                     onError?(fallbackError)
+                     */
                     return
                 } else {
                     onError?(error)
