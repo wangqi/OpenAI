@@ -12,6 +12,7 @@ import Foundation
 ///
 /// - Note: This class is NOT thread safe. It is a caller's responsibility to call all the methods in a thread-safe manner.
 final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: @unchecked Sendable, StreamInterpreter {
+    private let parser = ServerSentEventsStreamParser()
     private let streamingCompletionMarker = "[DONE]"
     private var previousChunkBuffer = ""
     
@@ -19,8 +20,18 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
     private var onError: ((Error) -> Void)?
     private let parsingOptions: ParsingOptions
     
+    enum InterpeterError: Error {
+        case unhandledStreamEventType(String)
+    }
+    
     init(parsingOptions: ParsingOptions) {
         self.parsingOptions = parsingOptions
+        
+        parser.setCallbackClosures { [weak self] event in
+            self?.processEvent(event)
+        } onError: { [weak self] error in
+            self?.onError?(error)
+        }
     }
     
     /// Sets closures an instance of type. Not thread safe.
@@ -41,21 +52,10 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
             return
         }
         
-        guard let stringContent = String(data: data, encoding: .utf8) else {
-            onError?(StreamingError.unknownContent)
-            return
-        }
-        
-        //When errors happens, the main urlSession will complete before error .onError() is called.
-        //Disable multiple thread here.
-        //wangqi 2023-03-25
-        
-        //executionSerializer.dispatch {
-        //    self.processJSON(from: stringContent)
-        //}
-        self.processJSON(from: stringContent)
+        parser.processData(data: data)
     }
     
+    /*
     private func processJSON(from stringContent: String) {
         if stringContent.isEmpty {
             return
@@ -103,6 +103,13 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
         }
         
         jsonObjects.enumerated().forEach { (index, jsonContent)  in
+    }
+     */
+    
+    private func processEvent(_ event: ServerSentEventsStreamParser.Event) {
+        switch event.eventType {
+        case "message":
+            let jsonContent = event.decodedData
             guard jsonContent != streamingCompletionMarker && !jsonContent.isEmpty else {
                 return
             }
@@ -127,15 +134,15 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
                 } else if let errorString = String(data: jsonData, encoding: .utf8) {
                     // Fallback: construct new error response from plain string
                     // wangqi 2025-03-23
-                    let fallbackError = APICommonError(code: "11", error: fullJsonString)
+                    let fallbackError = APICommonError(code: "11", error: errorString)
                     onError?(fallbackError)
                     return
-                } else if index == jsonObjects.count - 1 {
-                    previousChunkBuffer = "data: \(jsonContent)" // Chunk ends in a partial JSON
                 } else {
                     onError?(error)
                 }
             }
+        default:
+            onError?(InterpeterError.unhandledStreamEventType(event.eventType))
         }
     }
     

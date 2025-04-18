@@ -75,8 +75,8 @@ final class StreamingSession<Interpreter: StreamInterpreter>: NSObject, Identifi
     }
 
     func urlSession(
-        _ session: URLSession,
-        dataTask: URLSessionDataTask,
+        _ session: URLSessionProtocol,
+        dataTask: URLSessionDataTaskProtocol,
         didReceive response: URLResponse,
         completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
     ) {

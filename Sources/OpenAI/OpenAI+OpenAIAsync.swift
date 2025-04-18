@@ -221,6 +221,10 @@ extension OpenAI: OpenAIAsync {
             do {
                 return try decoder.decode(ResultType.self, from: interceptedData ?? data)
             } catch {
+                //wangqi 2025-04-18
+                let jsonString = String(data: data, encoding: .utf8) ?? ""
+                print("Error response: \(error)")
+                print("JSON: \(jsonString)")
                 if let decoded = JSONResponseErrorDecoder(decoder: decoder).decodeErrorResponse(data: interceptedData ?? data) {
                     throw decoded
                 } else {
