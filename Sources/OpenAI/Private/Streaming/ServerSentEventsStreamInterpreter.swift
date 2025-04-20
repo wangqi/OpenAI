@@ -145,7 +145,10 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
                 }
             }
         default:
-            onError?(InterpeterError.unhandledStreamEventType(event.eventType))
+            // wangqi 2025-04-20
+            //onError?(InterpeterError.unhandledStreamEventType(event.eventType))
+            let aPICommonError = APICommonError(code: "22", error: String(describing: event))
+            onError?(aPICommonError)
         }
     }
     
