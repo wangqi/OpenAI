@@ -30,9 +30,7 @@ public struct ImagesResult: Codable, Equatable, Sendable {
         }
         
         //wangqi 2025-03-29
-        init(b64Json: String? = nil,
-             revisedPrompt: String? = nil,
-             url: String? = nil) {
+        public init(b64Json: String? = nil, revisedPrompt: String? = nil, url: String? = nil) {
             self.b64Json = b64Json
             self.revisedPrompt = revisedPrompt
             self.url = url
@@ -40,8 +38,7 @@ public struct ImagesResult: Codable, Equatable, Sendable {
     }
     
     //wangqi 2025-03-29
-    init(created: TimeInterval = Date().timeIntervalSince1970,
-         data: [ImagesResult.Image] = []) {
+    public init(created: TimeInterval = Date().timeIntervalSince1970, data: [ImagesResult.Image] = []) {
         self.created = created
         self.data = data
     }
