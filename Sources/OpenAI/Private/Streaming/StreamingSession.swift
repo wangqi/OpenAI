@@ -25,6 +25,10 @@ final class StreamingSession<Interpreter: StreamInterpreter>: NSObject, Identifi
     private let onReceiveContent: (@Sendable (StreamingSession, ResultType) -> Void)?
     private let onProcessingError: (@Sendable (StreamingSession, Error) -> Void)?
     private let onComplete: (@Sendable (StreamingSession, Error?) -> Void)?
+    // wangqi modified 2025-05-20
+    private var responseData: Data?
+    // Add a flag to track error response state
+    private var isCollectingErrorResponse: Bool = false
 
     init(
         urlSessionFactory: URLSessionFactory = FoundationURLSessionFactory(),
@@ -55,9 +59,67 @@ final class StreamingSession<Interpreter: StreamInterpreter>: NSObject, Identifi
         return DataTaskPerformingURLSession(urlRequest: urlRequest, urlSession: urlSession)
     }
     
+    // Compelete rewrite this function to return error
+    // wangqi modified 2025-05-20
     func urlSession(_ session: any URLSessionProtocol, task: any URLSessionTaskProtocol, didCompleteWithError error: (any Error)?) {
         executionSerializer.dispatch {
-            self.onComplete?(self,error)
+            // --- Try to get the HTTPURLResponse if possible
+            var httpResponse: HTTPURLResponse?
+            var urlResponse: URLResponse?
+
+            // If the real object is a URLSessionTask, get .response
+            if let realTask = task as? URLSessionTask {
+                urlResponse = realTask.response
+                httpResponse = realTask.response as? HTTPURLResponse
+            }
+
+            let statusCode = httpResponse?.statusCode ?? 0
+            let isHTTPError = statusCode >= 400
+            
+            var finalError: Error? = error
+            defer { self.onComplete?(self, finalError) }
+
+            if self.isCollectingErrorResponse || isHTTPError {
+                for middleware in self.middlewares {
+                    if let openAIMiddleware = middleware as? OpenAIMiddlewareImpl {
+                        openAIMiddleware.interceptError(
+                            response: urlResponse, // <-- FIXED: use urlResponse here
+                            request: task.originalRequest,
+                            data: self.responseData,
+                            error: error
+                        )
+                    }
+                }
+
+                if let httpResponse = httpResponse {
+                    let errorBody = String(data: self.responseData ?? Data(), encoding: .utf8) ?? ""
+                    let composedError = NSError(
+                        domain: "HTTPError",
+                        code: statusCode,
+                        userInfo: [
+                            NSLocalizedDescriptionKey: HTTPURLResponse.localizedString(forStatusCode: statusCode),
+                            NSDebugDescriptionErrorKey: errorBody,
+                            "HTTPResponse": httpResponse
+                        ]
+                    )
+                    self.onProcessingError?(self, composedError)
+                    finalError = composedError
+                } else if let error = error {
+                    self.onProcessingError?(self, error)
+                    finalError = error
+                } else {
+                    let unknownError = NSError(domain: "UnknownNetworkError", code: -1, userInfo: nil)
+                    self.onProcessingError?(self, unknownError)
+                    finalError = unknownError
+                }
+
+                self.isCollectingErrorResponse = false
+                self.responseData = nil
+                return
+            }
+
+            self.responseData = nil
+            self.isCollectingErrorResponse = false
         }
     }
     
@@ -65,6 +127,13 @@ final class StreamingSession<Interpreter: StreamInterpreter>: NSObject, Identifi
         // Call the raw data callback if set
         // wangqi 2025-03-23
         onReceiveRawData?(data)
+        // Accumulate response data for error handling
+        // wangqi modified 2025-05-20
+        if responseData == nil {
+            responseData = Data()
+        }
+        responseData?.append(data)
+        
         executionSerializer.dispatch {
             let data = self.middlewares.reduce(data) { current, middleware in
                 middleware.interceptStreamingData(request: dataTask.originalRequest, current)
@@ -82,11 +151,24 @@ final class StreamingSession<Interpreter: StreamInterpreter>: NSObject, Identifi
     ) {
         executionSerializer.dispatch {
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
-                let error = OpenAIError.statusError(response: httpResponse, statusCode: httpResponse.statusCode)
-                self.onProcessingError?(self, error)
-                completionHandler(.cancel)
+                /*
+                 let error = OpenAIError.statusError(response: httpResponse, statusCode: httpResponse.statusCode)
+                 self.onProcessingError?(self, error)
+                 completionHandler(.cancel)
+                 return
+                 */
+                // wangqi modified 2025-05-20
+                // Enter error response collecting mode, but DO NOT cancel immediately!
+                self.isCollectingErrorResponse = true
+                // Reset response data to start collecting error response
+                self.responseData = Data()
+                // Let the server finish sending the error body. We'll handle error in didCompleteWithError.
+                completionHandler(.allow) // <-- Key change: allow streaming to finish so we get the body!
                 return
             }
+            // --- CHANGE: For non-error responses, turn off error collection and reset responseData
+            self.isCollectingErrorResponse = false
+            self.responseData = nil
             completionHandler(.allow)
         }
     }

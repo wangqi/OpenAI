@@ -331,8 +331,15 @@ extension OpenAI {
                 // wangqi 2025-03-23
                 print("[OpenAI Debug] OpenAI.swift #performStreamingRequest(): \(error)")
                 // Notify all middleware instances about the error
+                let responseData = (error as NSError).userInfo[NSDebugDescriptionErrorKey] as? String
+                let data = responseData?.data(using: .utf8)
                 self?.middlewares.forEach { middleware in
-                    middleware.interceptError(response: nil, request: interceptedRequest, data: nil, error: error)
+                    middleware.interceptError(
+                        response: nil,
+                        request: interceptedRequest,
+                        data: data,
+                        error: error
+                    )
                 }
                 onResult(.failure(error))
             } onComplete: { [weak self] session, error in
@@ -340,8 +347,15 @@ extension OpenAI {
                 if let error = error {
                     print("[OpenAI Debug] Streaming completed with error: \(error)")
                     // Notify all middleware instances about the completion error
+                    let responseData = (error as NSError).userInfo[NSDebugDescriptionErrorKey] as? String
+                    let data = responseData?.data(using: .utf8)
                     self?.middlewares.forEach { middleware in
-                        middleware.interceptError(response: nil, request: interceptedRequest, data: nil, error: error)
+                        middleware.interceptError(
+                            response: nil,
+                            request: interceptedRequest,
+                            data: data,
+                            error: error
+                        )
                     }
                 }
                 completion?(error)
