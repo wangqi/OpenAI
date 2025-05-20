@@ -78,6 +78,61 @@ public final class OpenAIMiddlewareImpl: OpenAIMiddleware {
         emit(output)
         return (response, data)
     }
+    
+    // wangqi modified 2025-05-20
+    public func interceptError(response: URLResponse?, request: URLRequest?, data: Data?, error: Error?) {
+        var output = "\n\n[\(label)] Response Error Intercepted:\n"
+        
+        // Print HTTPURLResponse details
+        if let httpResponse = response as? HTTPURLResponse {
+            output += "Status Code: \(httpResponse.statusCode)\n"
+            output += "URL: \(httpResponse.url?.absoluteString ?? "<unknown URL>")\n"
+            output += "Headers:\n"
+            for (key, value) in httpResponse.allHeaderFields {
+                output += "  \(key): \(value)\n"
+            }
+        } else if let response = response {
+            output += "Response: \(response)\n"
+        } else {
+            output += "Response: <none>\n"
+        }
+
+        // Print error body if available
+        if let data = data, !data.isEmpty {
+            if let jsonString = String(data: data, encoding: .utf8) {
+                output += "Body:\n\(prettyPrintJSON(from: jsonString) ?? jsonString)\n"
+            } else {
+                output += "Body: <non-UTF8 binary>\n"
+            }
+        } else {
+            output += "Body: <no data>\n"
+        }
+        
+        // Print Error if present
+        if let error = error {
+            output += "Error: \(error)\n"
+            if let nsError = error as NSError? {
+                if let failingURL = nsError.userInfo[NSURLErrorFailingURLStringErrorKey] as? String {
+                    output += "Failing URL: \(failingURL)\n"
+                }
+                if let responseData = nsError.userInfo["com.alamofire.serialization.response.error.data"] as? Data, // Alamofire-specific
+                   let errorString = String(data: responseData, encoding: .utf8) {
+                    output += "Alamofire Error Data:\n\(prettyPrintJSON(from: errorString) ?? errorString)\n"
+                }
+                // Dump all userInfo
+                if !nsError.userInfo.isEmpty {
+                    output += "NSError.userInfo:\n"
+                    for (key, value) in nsError.userInfo {
+                        output += "  \(key): \(value)\n"
+                    }
+                }
+            }
+        } else {
+            output += "Error: <none>\n"
+        }
+        
+        emit(output)
+    }
 
     // MARK: - Utilities
 

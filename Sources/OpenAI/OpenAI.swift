@@ -327,14 +327,22 @@ extension OpenAI {
                 urlRequest: interceptedRequest
             ) { _, object in
                 onResult(.success(object))
-            } onProcessingError: { _, error in
+            } onProcessingError: { [weak self] _, error in
                 // wangqi 2025-03-23
-                print("[OpenAI Debug] Streaming error: \(error)")
+                print("[OpenAI Debug] OpenAI.swift #performStreamingRequest(): \(error)")
+                // Notify all middleware instances about the error
+                self?.middlewares.forEach { middleware in
+                    middleware.interceptError(response: nil, request: interceptedRequest, data: nil, error: error)
+                }
                 onResult(.failure(error))
             } onComplete: { [weak self] session, error in
                 // wangqi 2025-03-23
                 if let error = error {
                     print("[OpenAI Debug] Streaming completed with error: \(error)")
+                    // Notify all middleware instances about the completion error
+                    self?.middlewares.forEach { middleware in
+                        middleware.interceptError(response: nil, request: interceptedRequest, data: nil, error: error)
+                    }
                 }
                 completion?(error)
                 self?.invalidateSession(session)
