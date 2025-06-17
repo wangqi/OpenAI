@@ -117,10 +117,10 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
                 onError?(StreamingError.unknownContent)
                 return
             }
-            let decoder = JSONDecoder()
-            decoder.userInfo[.parsingOptions] = parsingOptions
+            
+            let decoder = JSONResponseDecoder(parsingOptions: parsingOptions)
             do {
-                let object = try decoder.decode(ResultType.self, from: jsonData)
+                let object: ResultType = try decoder.decodeResponseData(jsonData)
                 onEventDispatched?(object)
             } catch DecodingError.dataCorrupted(_) {
                 // Ignore this specific error
@@ -128,10 +128,7 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
                 print("Warning: dataCorrupted, json: \(jsonString)")
                 print("It may be due to incomplete JSON data in the stream. Waiting for the next chunk...")
             } catch {
-                if let decoded = JSONResponseErrorDecoder(decoder: decoder).decodeErrorResponse(data: jsonData) {
-                    onError?(decoded)
-                    return
-                } else if let errorString = String(data: jsonData, encoding: .utf8) {
+                if let errorString = String(data: jsonData, encoding: .utf8) {
                     // This error is caused by partial JSON content due to streaming.
                     // We just ignore it.
                     // wangqi 2025-04-18
@@ -139,6 +136,7 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
                     let fallbackError = APICommonError(code: "11", error: errorString)
                     onError?(fallbackError)
                      */
+                    print("Partial JSON content error: \(errorString). Ignore it")
                     return
                 } else {
                     onError?(error)

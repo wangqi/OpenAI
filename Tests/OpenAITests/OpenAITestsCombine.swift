@@ -11,7 +11,6 @@ import XCTest
 @testable import OpenAI
 import Combine
 
-@available(iOS 13.0, tvOS 13.0, macOS 10.15, watchOS 6.0, *)
 @MainActor final class OpenAITestsCombine: XCTestCase {
     
     private var openAI: OpenAIProtocol!
@@ -240,7 +239,7 @@ import Combine
     
     private func makeChatsQuery() -> ChatQuery {
         .init(messages: [
-            .system(.init(content: "You are Librarian-GPT. You know everything about the books.")),
+            .system(.init(content: .textContent("You are Librarian-GPT. You know everything about the books."))),
             .user(.init(content: .string("Who wrote Harry Potter?")))
        ], model: .gpt3_5Turbo)
     }
@@ -250,9 +249,6 @@ import Combine
     }
 }
 
-@available(tvOS 13.0, *)
-@available(iOS 13.0, *)
-@available(watchOS 6.0, *)
 extension OpenAITestsCombine {
     
     func stub(error: URLError) {

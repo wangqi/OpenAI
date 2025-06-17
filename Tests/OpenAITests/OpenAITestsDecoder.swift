@@ -8,7 +8,6 @@
 import XCTest
 @testable import OpenAI
 
-@available(iOS 13.0, tvOS 13.0, macOS 10.15, watchOS 6.0, *)
 class OpenAITestsDecoder: XCTestCase {
     
     override func setUp() {
@@ -71,7 +70,7 @@ class OpenAITestsDecoder: XCTestCase {
                     finishReason: "stop"
                 )
             ],
-            usage: .init(completionTokens: 12, promptTokens: 9, totalTokens: 21),
+            usage: .init(completionTokens: 12, promptTokens: 9, totalTokens: 21, promptTokensDetails: nil),
             citations: nil
         )
         try decode(data, expectedValue)
@@ -104,19 +103,19 @@ class OpenAITestsDecoder: XCTestCase {
     }
 
     func testChatQueryWithVision() async throws {
-        let chatQuery = ChatQuery(messages: [
-//            .init(role: .user, content: [
-//                .chatCompletionContentPartTextParam(.init(text: "What's in this image?")),
-//                .chatCompletionContentPartImageParam(.init(imageUrl: .init(url: "https://some.url/image.jpeg", detail: .auto)))
-//            ])!
-            .user(.init(content: .vision([
-                .chatCompletionContentPartTextParam(.init(text: "What's in this image?")),
-                .chatCompletionContentPartImageParam(.init(imageUrl: .init(url: "https://some.url/image.jpeg", detail: .auto)))
-            ])))
-        ], model: Model.gpt4_vision_preview, maxTokens: 300)
+        let chatQuery = ChatQuery(
+            messages: [
+                .user(.init(content: .contentParts([
+                    .text(.init(text: "What's in this image?")),
+                    .image(.init(imageUrl: .init(url: "https://some.url/image.jpeg", detail: .auto)))
+                ])))
+            ],
+            model: Model.gpt4_o,
+            maxCompletionTokens: 300
+        )
         let expectedValue = """
         {
-            "model": "gpt-4-vision-preview",
+            "model": "gpt-4o",
             "messages": [
                 {
                     "role": "user",
@@ -135,7 +134,7 @@ class OpenAITestsDecoder: XCTestCase {
                     ]
                 }
             ],
-            "max_tokens": 300,
+            "max_completion_tokens": 300,
             "stream": false
         }
         """
@@ -314,7 +313,7 @@ class OpenAITestsDecoder: XCTestCase {
                     finishReason: "tool_calls"
                 )
             ],
-            usage: .init(completionTokens: 18, promptTokens: 82, totalTokens: 100),
+            usage: .init(completionTokens: 18, promptTokens: 82, totalTokens: 100, promptTokensDetails: nil),
             citations: nil
         )
         try decode(data, expectedValue)
@@ -691,7 +690,7 @@ class OpenAITestsDecoder: XCTestCase {
     
     func testChatQueryWithStructuredOutputDerivedSchema() throws {        
         let query = ChatQuery(
-            messages: [.system(.init(content: "Return a structured response."))],
+            messages: [.system(.init(content: .textContent("Return a structured response.")))],
             model: .gpt4_o,
             responseFormat: .derivedJsonSchema(name: "movie-info", type: MovieInfo.self)
         )
@@ -719,7 +718,7 @@ class OpenAITestsDecoder: XCTestCase {
     
     func testChatQueryWithStructuredOutputJsonSchema() throws {
         let query = ChatQuery(
-            messages: [.system(.init(content: "Return a structured response."))],
+            messages: [.system(.init(content: .textContent("Return a structured response.")))],
             model: .gpt4_o,
             responseFormat: .jsonSchema(
                 .init(

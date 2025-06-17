@@ -10,7 +10,6 @@ import Foundation
 import XCTest
 @testable import OpenAI
 
-@available(iOS 13.0, tvOS 13.0, macOS 10.15, watchOS 6.0, *)
 class OpenAIStreamingTests: XCTestCase {
     private var configuration = OpenAI.Configuration(token: "foo", organizationIdentifier: "bar", timeoutInterval: 14)
     private let streamingSessionFactory = MockStreamingSessionFactory()
@@ -96,7 +95,7 @@ class OpenAIStreamingTests: XCTestCase {
     
     private func makeChatQuery() -> ChatQuery {
         .init(messages: [
-            .system(.init(content: "You are Librarian-GPT. You know everything about the books.")),
+            .system(.init(content: .textContent("You are Librarian-GPT. You know everything about the books."))),
             .user(.init(content: .string("Who wrote Harry Potter?")))
         ], model: .gpt3_5Turbo)
     }
