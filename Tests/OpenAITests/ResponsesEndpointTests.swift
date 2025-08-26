@@ -69,10 +69,10 @@ class ResponsesEndpointTests: XCTestCase {
 
     func testCreateResponseWithFunctionTool() async throws {
         // Build a simple JSON schema: { "type":"object", "properties":{ "foo":{ "type":"string" } }, "required":["foo"] }
-        let propSchema = AnyJSONSchema(fields: [
+        let propSchema = JSONSchema(fields: [
             JSONSchemaField.type(.string)
         ])
-        let schema = AnyJSONSchema(fields: [
+        let schema = JSONSchema(fields: [
             JSONSchemaField.type(.object),
             JSONSchemaField.properties(["foo": propSchema]),
             JSONSchemaField.required(["foo"])
@@ -95,36 +95,13 @@ class ResponsesEndpointTests: XCTestCase {
         )
 
         // Dummy response object
-        let dummy = ResponseObject(
-            createdAt: 123,
-            error: nil,
-            id: "resp-1",
-            incompleteDetails: nil,
-            instructions: nil,
-            maxOutputTokens: nil,
-            metadata: [:],
-            model: "test-model",
-            object: "response",
-            output: [],
-            parallelToolCalls: false,
-            previousResponseId: nil,
-            reasoning: nil,
-            status: "completed",
-            temperature: nil,
-            text: .init(format: nil),
-            toolChoice: .ToolChoiceOptions(.auto),
-            tools: [tool],
-            topP: nil,
-            truncation: nil,
-            usage: nil,
-            user: nil
-        )
+        let dummy = makeResponse(tools: [tool])
         try stub(dummy)
 
         let result = try await openAI.responses.createResponse(query: query)
         switch result.tools[0] {
         case .functionTool(let responseTool):
-            guard let jsonSchemaObject = responseTool.parameters.value as? JSONSchemaObject else {
+            guard case let JSONSchema.object(jsonSchemaObject) = responseTool.parameters else {
                 XCTFail("Expected function.parameters to be object")
                 return
             }
@@ -141,5 +118,31 @@ class ResponsesEndpointTests: XCTestCase {
         default:
             XCTFail("Expected tool in response to be a function")
         }
+    }
+    private func makeResponse(output: [OutputItem] = [], tools: [Tool] = []) -> ResponseObject {
+        .init(
+            createdAt: 123,
+            error: nil,
+            id: "resp-1",
+            incompleteDetails: nil,
+            instructions: nil,
+            maxOutputTokens: nil,
+            metadata: [:],
+            model: "test-model",
+            object: "response",
+            output: output,
+            parallelToolCalls: false,
+            previousResponseId: nil,
+            reasoning: nil,
+            status: "completed",
+            temperature: nil,
+            text: .init(format: nil),
+            toolChoice: .ToolChoiceOptions(.auto),
+            tools: tools,
+            topP: nil,
+            truncation: nil,
+            usage: nil,
+            user: nil
+        )
     }
 }

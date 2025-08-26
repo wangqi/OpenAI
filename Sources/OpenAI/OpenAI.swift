@@ -131,16 +131,16 @@ final public class OpenAI: OpenAIProtocol, @unchecked Sendable {
         
         self.streamingClient = .init(
             configuration: configuration,
-            middlewares: middlewares,
             streamingSessionFactory: streamingSessionFactory,
+            middlewares: middlewares,
             cancellablesFactory: cancellablesFactory,
             executionSerializer: executionSerializer
         )
         
         self.asyncClient = .init(
             configuration: configuration,
-            middlewares: middlewares,
             session: session,
+            middlewares: middlewares,
             dataTaskFactory: dataTaskFactory,
             responseHandler: .init(middlewares: middlewares, configuration: configuration)
         )
@@ -305,6 +305,18 @@ final public class OpenAI: OpenAIProtocol, @unchecked Sendable {
     
     public func audioTranscriptions(query: AudioTranscriptionQuery, completion: @escaping @Sendable (Result<AudioTranscriptionResult, Error>) -> Void) -> CancellableRequest {
         performRequest(request: makeAudioTranscriptionsRequest(query: query), completion: completion)
+    }
+    
+    public func audioTranscriptionsVerbose(
+        query: AudioTranscriptionQuery,
+        completion: @escaping @Sendable (Result<AudioTranscriptionVerboseResult, Error>) -> Void
+    ) -> CancellableRequest {
+        guard query.responseFormat == .verboseJson else {
+            completion(.failure(AudioTranscriptionError.invalidQuery(expectedResponseFormat: .verboseJson)))
+            return NoOpCancellableRequest()
+        }
+        
+        return performRequest(request: makeAudioTranscriptionsRequest(query: query), completion: completion)
     }
     
     public func audioTranscriptionStream(query: AudioTranscriptionQuery, onResult: @escaping @Sendable (Result<AudioTranscriptionStreamResult, Error>) -> Void, completion: (@Sendable (Error?) -> Void)?) -> CancellableRequest {

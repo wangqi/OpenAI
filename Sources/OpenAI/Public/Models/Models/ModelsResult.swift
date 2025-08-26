@@ -14,28 +14,16 @@ public struct ModelsResult: Codable, Equatable, Sendable {
     public let data: [ModelResult]
     /// The object type, which is always `list`
     public let object: String
-    
-    // MARK: - wangqi 2025-03-28
-    
-    public enum CodingKeys: String, CodingKey {
-        case data
-        case object
+
+    public init(data: [ModelResult], object: String) {
+        self.data = data
+        self.object = object
     }
 
-    public init(from decoder: Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        // Decode `data` (required)
-        data = try container.decode([ModelResult].self, forKey: .data)
-
-        // Decode `object`, fallback to "list" if missing
-        object = try container.decodeIfPresent(String.self, forKey: .object) ?? "list"
-    }
-
-    // Optional: for symmetry, you may want to provide a custom encoder
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(data, forKey: .data)
-        try container.encode(object, forKey: .object)
+        let parsingOptions = decoder.userInfo[.parsingOptions] as? ParsingOptions ?? []
+        self.data = try container.decode([ModelResult].self, forKey: .data)
+        self.object = try container.decode(String.self, forKey: .object, parsingOptions: parsingOptions, defaultValue: "list")
     }
 }

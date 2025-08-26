@@ -38,11 +38,7 @@ public struct ModelResult: Codable, Equatable, Sendable {
         let parsingOptions = decoder.userInfo[.parsingOptions] as? ParsingOptions ?? []
         self.id = try container.decode(String.self, forKey: .id)
         self.created = try container.decodeTimeInterval(forKey: .created, parsingOptions: parsingOptions)
-        // For OpenRouter compatibility
-        // wangqi 2025-03-28
-        //object = try container.decode(String.self, forKey: .object)
-        //ownedBy = try container.decode(String.self, forKey: .ownedBy)
-        object = try container.decodeIfPresent(String.self, forKey: .object) ?? id
-        ownedBy = try container.decodeIfPresent(String.self, forKey: .ownedBy) ?? ""
+        self.object = try container.decode(String.self, forKey: .object, parsingOptions: parsingOptions, defaultValue: "model")
+        self.ownedBy = try container.decode(String.self, forKey: .ownedBy, parsingOptions: parsingOptions, defaultValue: "")
     }
 }
