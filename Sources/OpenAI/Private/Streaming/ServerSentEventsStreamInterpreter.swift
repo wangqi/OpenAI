@@ -142,12 +142,70 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
                     onError?(error)
                 }
             }
+        case "error":
+            //wangqi modified 2025-08-27
+            let jsonContent = event.decodedData
+            var errorMessage = jsonContent
+            
+            // Try to parse as JSON and extract the error message
+            if let jsonData = jsonContent.data(using: .utf8) {
+                do {
+                    let jsonObject = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+                    
+                    // Try standard OpenAI error format: {"error": {"message": "..."}}
+                    if let errorObj = jsonObject?["error"] as? [String: Any],
+                       let message = errorObj["message"] as? String {
+                        errorMessage = message
+                    }
+                    // Try direct message format: {"message": "..."}
+                    else if let message = jsonObject?["message"] as? String {
+                        errorMessage = message
+                    }
+                    // Try error field directly as string: {"error": "message"}
+                    else if let message = jsonObject?["error"] as? String {
+                        errorMessage = message
+                    }
+                } catch {
+                    // JSON parsing failed, use raw content
+                }
+            }
+            
+            // Clean up the error message and create error object
+            let cleanedMessage = cleanErrorMessage(errorMessage.isEmpty ? "Unknown streaming error occurred" : errorMessage)
+            let formattedError = APICommonError(code: "Remote server message", error: cleanedMessage)
+            onError?(formattedError)
         default:
-            // wangqi 2025-04-20
-            //onError?(InterpeterError.unhandledStreamEventType(event.eventType))
-            let aPICommonError = APICommonError(code: "22", error: String(describing: event))
-            onError?(aPICommonError)
+            // Handle truly unknown event types
+            let unknownError = APICommonError(code: "UNKNOWN_EVENT", error: "Unknown event type: \(event.eventType)")
+            onError?(unknownError)
         }
+    }
+    
+    // Clean up technical error messages to make them user-friendly using pattern recognition
+    private func cleanErrorMessage(_ message: String) -> String {
+        var cleaned = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Pattern 1: Remove "Error in <verb>ing <noun> stream: " pattern
+        let streamErrorPattern = #"^Error in \w+ing \w+ stream: "#
+        cleaned = cleaned.replacingOccurrences(of: streamErrorPattern, with: "", options: .regularExpression)
+        
+        // Pattern 2: Remove Python exception types (XxxxError: or XxxxException:)
+        let pythonExceptionPattern = #"^[A-Z][a-zA-Z]*(?:Error|Exception): "#
+        cleaned = cleaned.replacingOccurrences(of: pythonExceptionPattern, with: "", options: .regularExpression)
+        
+        // Pattern 3: Remove generic "Error: " prefix
+        let genericErrorPattern = #"^Error: "#
+        cleaned = cleaned.replacingOccurrences(of: genericErrorPattern, with: "", options: .regularExpression)
+        
+        // Trim whitespace again after pattern removal
+        cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Capitalize first letter if needed
+        if !cleaned.isEmpty {
+            cleaned = cleaned.prefix(1).uppercased() + cleaned.dropFirst()
+        }
+        
+        return cleaned.isEmpty ? "An error occurred while processing your request" : cleaned
     }
     
     // Test if the mulitple Decodable can be used to parse the jsonString

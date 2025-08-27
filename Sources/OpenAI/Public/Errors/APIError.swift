@@ -93,9 +93,10 @@ public struct APICommonError: Error, Decodable, Equatable, CustomStringConvertib
         self.code = try container.decode(String.self, forKey: .code)
     }
     
+    // wangqi modified 2025-08-27
     // Provides a user-friendly error message like system errors
     public var localizedDescription: String {
-        return "Error \(code): \(error)"
+        return "\(error)"
     }
     
     // Allows String(error) to return localizedDescription
