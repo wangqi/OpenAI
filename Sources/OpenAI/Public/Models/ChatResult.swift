@@ -149,11 +149,32 @@ public struct ChatResult: Codable, Equatable, Sendable {
             public var reasoning: String? {
                 _reasoning ?? _reasoningContent
             }
+            
+            /// Media content from extended provider fields (images, etc.)
+            public let images: [MediaContent]?
 
             public enum CodingKeys: String, CodingKey {
                 case content, refusal, role, annotations, audio, toolCalls = "tool_calls"
                 case _reasoning = "reasoning"
                 case _reasoningContent = "reasoning_content"
+                case images
+            }
+            
+            public init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                
+                // Decode standard fields
+                content = try container.decodeIfPresent(String.self, forKey: .content)
+                refusal = try container.decodeIfPresent(String.self, forKey: .refusal)
+                role = try container.decode(String.self, forKey: .role)
+                annotations = try container.decodeIfPresent([Annotation].self, forKey: .annotations)
+                audio = try container.decodeIfPresent(Audio.self, forKey: .audio)
+                toolCalls = try container.decodeIfPresent([ChatQuery.ChatCompletionMessageParam.AssistantMessageParam.ToolCallParam].self, forKey: .toolCalls)
+                _reasoning = try container.decodeIfPresent(String.self, forKey: ._reasoning)
+                _reasoningContent = try container.decodeIfPresent(String.self, forKey: ._reasoningContent)
+                
+                // Decode images using MediaContentFactory
+                images = MediaContentFactory.decodeMediaContent(from: container, forKey: .images)
             }
             
             public struct Annotation: Codable, Equatable, Sendable {

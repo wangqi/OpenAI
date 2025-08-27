@@ -49,6 +49,9 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
             public var reasoning: String? {
                 _reasoning ?? _reasoningContent
             }
+            
+            /// Media content from extended provider fields (images, etc.)
+            public let images: [MediaContent]?
 
             public struct ChoiceDeltaAudio: Codable, Equatable, Sendable {
 
@@ -114,27 +117,23 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                 case toolCalls = "tool_calls"
                 case _reasoning = "reasoning"
                 case _reasoningContent = "reasoning_content"
+                case images
             }
             
-            // Add a init() function to explicitly decode tool_calls in ChatStreamResult
-            // wangqi 2025-03-23
-            /*
             public init(from decoder: Decoder) throws {
                 let container = try decoder.container(keyedBy: CodingKeys.self)
-                content = try container.decodeIfPresent(String.self, forKey: .content)
-                reasoningContent = try container.decodeIfPresent(String.self, forKey: .reasoningContent)
-                role = try container.decodeIfPresent(Role.self, forKey: .role)
                 
-                // Explicitly decode tool_calls to ensure it's not missed
-                if container.contains(.toolCalls) {
-                    toolCalls = try container.decode([ChoiceDeltaToolCall].self, forKey: .toolCalls)
-                    print("[DEBUG] Successfully decoded toolCalls: \(String(describing: toolCalls))")
-                } else {
-                    toolCalls = nil
-                    // print("[DEBUG] No toolCalls found in container")
-                }
+                // Decode standard fields
+                content = try container.decodeIfPresent(String.self, forKey: .content)
+                audio = try container.decodeIfPresent(ChoiceDeltaAudio.self, forKey: .audio)
+                role = try container.decodeIfPresent(Role.self, forKey: .role)
+                toolCalls = try container.decodeIfPresent([ChoiceDeltaToolCall].self, forKey: .toolCalls)
+                _reasoning = try container.decodeIfPresent(String.self, forKey: ._reasoning)
+                _reasoningContent = try container.decodeIfPresent(String.self, forKey: ._reasoningContent)
+                
+                // Decode images using MediaContentFactory
+                images = MediaContentFactory.decodeMediaContent(from: container, forKey: .images)
             }
-            */
         }
 
         /// The index of the choice in the list of choices.
