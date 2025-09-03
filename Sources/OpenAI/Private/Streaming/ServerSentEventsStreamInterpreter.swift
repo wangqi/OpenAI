@@ -129,13 +129,12 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
                 print("It may be due to incomplete JSON data in the stream. Waiting for the next chunk...")
             } catch {
                 if let errorString = String(data: jsonData, encoding: .utf8) {
-                    // This error is caused by partial JSON content due to streaming.
-                    // We just ignore it.
-                    // wangqi 2025-04-18
-                    /*
-                    let fallbackError = APICommonError(code: "11", error: errorString)
-                    onError?(fallbackError)
-                     */
+                    // Try to extract useful error information from partial JSON
+                    // wangqi 2025-09-02
+                    if let extractedError = extractErrorFromPartialJSON(errorString) {
+                        onError?(extractedError)
+                        return
+                    }
                     print("Partial JSON content error: \(errorString). Ignore it")
                     return
                 } else {
@@ -208,6 +207,183 @@ final class ServerSentEventsStreamInterpreter <ResultType: Codable & Sendable>: 
         return cleaned.isEmpty ? "An error occurred while processing your request" : cleaned
     }
     
+    // Extract error information from partial JSON strings using simple string operations
+    // wangqi 2025-09-02
+    private func extractErrorFromPartialJSON(_ partialJSON: String) -> APICommonError? {
+        let code = extractCode(from: partialJSON)
+        let message = extractMessage(from: partialJSON)
+        
+        if let message = message {
+            return APICommonError(code: code ?? "", error: message)
+        } else if let code = code {
+            return APICommonError(code: code, error: partialJSON)
+        }
+        
+        return nil
+    }
+    
+    // Extract the first "code" field value
+    private func extractCode(from json: String) -> String? {
+        guard let codeRange = json.range(of: "\"code\":") else { return nil }
+        
+        let afterColon = codeRange.upperBound
+        
+        // Skip whitespace
+        var index = afterColon
+        while index < json.endIndex && json[index].isWhitespace {
+            index = json.index(after: index)
+        }
+        
+        // Extract number - fix bounds checking to prevent crash
+        var numberEnd = index
+        while numberEnd < json.endIndex && json[numberEnd].isWholeNumber {
+            numberEnd = json.index(after: numberEnd)
+        }
+        
+        if index < numberEnd {
+            return String(json[index..<numberEnd])
+        }
+        
+        return nil
+    }
+    
+    // Extract the deepest message by finding all messages and picking the shortest one (likely innermost)
+    // This function handles complex nested JSON with escaped quotes to find the most relevant error message
+    private func extractMessage(from json: String) -> String? {
+        var messages: [String] = []
+        var searchString = json
+        
+        // Search for all "message": fields in the JSON string
+        while true {
+            let messageRange = findNextMessageField(in: searchString)
+            guard let range = messageRange else { break }
+            
+            // Move past "message": or \"message\":
+            searchString = String(searchString[range.upperBound...])
+            
+            // Skip whitespace after the colon
+            while searchString.hasPrefix(" ") || searchString.hasPrefix("\t") {
+                searchString = String(searchString.dropFirst())
+            }
+            
+            // Extract the message value based on quote type
+            if let (message, remainingString) = extractQuotedValue(from: searchString) {
+                // Skip ConnectionError wrapper messages to get to the real error
+                if !message.starts(with: "ConnectionError:") {
+                    let unescapedMessage = unescapeJSONString(message)
+                    messages.append(unescapedMessage)
+                }
+                searchString = remainingString
+            }
+        }
+        
+        // Return the shortest message (most specific/innermost error)
+        return messages.filter { !$0.isEmpty }.min(by: { $0.count < $1.count })
+    }
+    
+    // Find the next "message": field, handling both regular and escaped quotes
+    private func findNextMessageField(in string: String) -> Range<String.Index>? {
+        let patterns = ["\"message\":", "\\\"message\\\":"]
+        var earliestRange: Range<String.Index>? = nil
+        
+        for pattern in patterns {
+            if let range = string.range(of: pattern) {
+                if let existing = earliestRange {
+                    if range.lowerBound < existing.lowerBound {
+                        earliestRange = range
+                    }
+                } else {
+                    earliestRange = range
+                }
+            }
+        }
+        
+        return earliestRange
+    }
+    
+    // Extract a quoted string value, handling both regular and escaped quotes
+    // Returns: (extracted_value, remaining_string) or nil if no valid quoted string found
+    private func extractQuotedValue(from string: String) -> (String, String)? {
+        var searchString = string
+        
+        // Determine quote type and skip opening quote
+        let (quoteType, contentStart) = getQuoteTypeAndStart(from: searchString)
+        guard let quotePattern = quoteType, let startIndex = contentStart else { return nil }
+        
+        searchString = String(searchString[startIndex...])
+        
+        // Find the matching closing quote
+        if let endIndex = findClosingQuote(in: searchString, for: quotePattern) {
+            let extractedValue = String(searchString[..<endIndex])
+            let remainingString = String(searchString[endIndex...])
+            return (extractedValue, remainingString)
+        }
+        
+        return nil
+    }
+    
+    // Identify quote type and return the start position of actual content
+    private func getQuoteTypeAndStart(from string: String) -> (String?, String.Index?) {
+        if string.hasPrefix("\\\"") {
+            // Escaped quote: \"
+            let startIndex = string.index(string.startIndex, offsetBy: 2)
+            return ("\\\"", startIndex)
+        } else if string.hasPrefix("\"") {
+            // Regular quote: "
+            let startIndex = string.index(after: string.startIndex)
+            return ("\"", startIndex)
+        }
+        return (nil, nil)
+    }
+    
+    // Find the matching closing quote, handling escape sequences
+    private func findClosingQuote(in string: String, for quoteType: String) -> String.Index? {
+        var index = string.startIndex
+        
+        while index < string.endIndex {
+            if quoteType == "\\\"" {
+                // Looking for closing \" (but not \\\")
+                if index < string.index(before: string.endIndex) {
+                    let nextIndex = string.index(after: index)
+                    if string[index] == "\\" && string[nextIndex] == "\"" {
+                        // Check if this backslash is itself escaped (\\")
+                        let isEscapedBackslash = index > string.startIndex && 
+                                               string[string.index(before: index)] == "\\"
+                        if !isEscapedBackslash {
+                            return index // Found unescaped \"
+                        }
+                        // Skip the escaped sequence
+                        index = string.index(after: nextIndex)
+                        continue
+                    }
+                }
+            } else {
+                // Looking for closing " (but not \")
+                if string[index] == "\"" {
+                    let isEscaped = index > string.startIndex && 
+                                   string[string.index(before: index)] == "\\"
+                    if !isEscaped {
+                        return index // Found unescaped "
+                    }
+                }
+            }
+            index = string.index(after: index)
+        }
+        
+        return nil
+    }
+    
+    // Unescape standard JSON string escape sequences
+    private func unescapeJSONString(_ string: String) -> String {
+        return string
+            .replacingOccurrences(of: "\\\\\"", with: "\"")  // \\\" -> "
+            .replacingOccurrences(of: "\\\"", with: "\"")     // \" -> "
+            .replacingOccurrences(of: "\\n", with: "\n")      // \n -> newline
+            .replacingOccurrences(of: "\\r", with: "\r")      // \r -> carriage return  
+            .replacingOccurrences(of: "\\t", with: "\t")      // \t -> tab
+            .replacingOccurrences(of: "\\\\", with: "\\")     // \\ -> \
+    }
+
     // Test if the mulitple Decodable can be used to parse the jsonString
     // wangqi 2025-03-23
     func decodeFirstMatching(jsonString: String, as types: [Decodable.Type]) -> Decodable? {
