@@ -74,7 +74,7 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
 
             public struct ChoiceDeltaToolCall: Codable, Equatable, Sendable {
 
-                public let index: Int
+                public let index: Int?
                 /// The ID of the tool call.
                 public let id: String?
                 /// The function that the model called.
