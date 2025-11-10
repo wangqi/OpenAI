@@ -492,12 +492,14 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                     case image(ContentPartImageParam)
                     /// Learn about [audio inputs](https://platform.openai.com/docs/guides/audio).
                     case audio(ContentPartAudioParam)
+                    /// Learn about [video inputs](https://platform.openai.com/docs/guides/vision).
+                    case video(ContentPartVideoParam)
                     /// Learn about [file inputs](https://platform.openai.com/docs/guides/text) for text generation.
                     case file(ContentPartFileParam)
                     
                     public init(from decoder: Decoder) throws {
                         let container = try decoder.singleValueContainer()
-                        
+
                         if let value = try? container.decode(ContentPartTextParam.self) {
                             self = .text(value)
                             return
@@ -510,11 +512,15 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                             self = .audio(value)
                             return
                         }
+                        if let value = try? container.decode(ContentPartVideoParam.self) {
+                            self = .video(value)
+                            return
+                        }
                         if let value = try? container.decode(ContentPartFileParam.self) {
                             self = .file(value)
                             return
                         }
-                        
+
                         throw DecodingError.dataCorruptedError(
                             in: container,
                             debugDescription: "ContentPart could not be decoded into any known type"
@@ -523,13 +529,15 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                     
                     public func encode(to encoder: Encoder) throws {
                         var container = encoder.singleValueContainer()
-                        
+
                         switch self {
                         case .text(let value):
                             try container.encode(value)
                         case .image(let value):
                             try container.encode(value)
                         case .audio(let value):
+                            try container.encode(value)
+                        case .video(let value):
                             try container.encode(value)
                         case .file(let value):
                             try container.encode(value)
@@ -763,6 +771,35 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
             public enum CodingKeys: String, CodingKey {
                 case file
                 case type
+            }
+        }
+
+        public struct ContentPartVideoParam: Codable, Hashable, Sendable {
+            /// The type of the content part.
+            public let type: String
+            public let videoUrl: VideoURL
+
+            public init(videoUrl: VideoURL) {
+                self.type = "input_video"
+                self.videoUrl = videoUrl
+            }
+
+            public struct VideoURL: Codable, Hashable, Sendable {
+                /// Either a URL of the video or the base64 encoded video data.
+                public let url: String
+
+                public init(url: String) {
+                    self.url = url
+                }
+
+                public init(videoData: Data, mimeType: String) {
+                    self.init(url: "data:\(mimeType);base64,\(videoData.base64EncodedString())")
+                }
+            }
+
+            enum CodingKeys: String, CodingKey {
+                case type
+                case videoUrl = "video_url"
             }
         }
 
