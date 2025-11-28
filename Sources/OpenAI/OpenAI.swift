@@ -97,7 +97,48 @@ final public class OpenAI: OpenAIProtocol, @unchecked Sendable {
             parsingOptions: configuration.parsingOptions,
             sslDelegate: sslStreamingDelegate
         )
-        
+
+        self.init(
+            configuration: configuration,
+            session: session,
+            streamingSessionFactory: streamingSessionFactory,
+            middlewares: middlewares
+        )
+    }
+
+    // wangqi 2025-11-28: Add initializer with custom URLSessionConfiguration for proxy support
+    /// Creates an OpenAI client with custom URLSessionConfiguration for both regular and streaming requests.
+    /// This is useful for proxy debugging with tools like mitmproxy.
+    ///
+    /// - Parameters:
+    ///   - configuration: OpenAI API configuration
+    ///   - urlSessionConfiguration: Custom URLSessionConfiguration (e.g., with proxy settings)
+    ///   - middlewares: Optional middleware array
+    ///   - sslStreamingDelegate: Optional SSL delegate for streaming (also used for regular requests)
+    public convenience init(
+        configuration: Configuration,
+        urlSessionConfiguration: URLSessionConfiguration,
+        middlewares: [OpenAIMiddleware] = [],
+        sslStreamingDelegate: SSLDelegateProtocol? = nil
+    ) {
+        // Create session for regular requests with SSL delegate for certificate bypass
+        // wangqi 2025-11-28: Wrap SSL delegate in URLSessionDelegate adapter for non-streaming requests
+        let session: URLSession
+        if let sslDelegate = sslStreamingDelegate {
+            let delegateAdapter = SSLURLSessionDelegateAdapter(sslDelegate: sslDelegate)
+            session = URLSession(configuration: urlSessionConfiguration, delegate: delegateAdapter, delegateQueue: nil)
+        } else {
+            session = URLSession(configuration: urlSessionConfiguration)
+        }
+
+        // Create streaming factory with custom configuration
+        let streamingSessionFactory = ImplicitURLSessionStreamingSessionFactory(
+            middlewares: middlewares,
+            parsingOptions: configuration.parsingOptions,
+            sslDelegate: sslStreamingDelegate,
+            urlSessionFactory: ConfigurableURLSessionFactory(configuration: urlSessionConfiguration)
+        )
+
         self.init(
             configuration: configuration,
             session: session,

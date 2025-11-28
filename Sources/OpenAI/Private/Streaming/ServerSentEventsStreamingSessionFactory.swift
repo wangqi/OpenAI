@@ -38,7 +38,22 @@ struct ImplicitURLSessionStreamingSessionFactory: StreamingSessionFactory {
     let middlewares: [OpenAIMiddleware]
     let parsingOptions: ParsingOptions
     let sslDelegate: SSLDelegateProtocol?
-    
+    // wangqi 2025-11-28: Add custom URLSession factory for proxy support
+    let urlSessionFactory: URLSessionFactory
+
+    // wangqi 2025-11-28: Add initializer with default factory
+    init(
+        middlewares: [OpenAIMiddleware],
+        parsingOptions: ParsingOptions,
+        sslDelegate: SSLDelegateProtocol?,
+        urlSessionFactory: URLSessionFactory = FoundationURLSessionFactory()
+    ) {
+        self.middlewares = middlewares
+        self.parsingOptions = parsingOptions
+        self.sslDelegate = sslDelegate
+        self.urlSessionFactory = urlSessionFactory
+    }
+
     func makeServerSentEventsStreamingSession<ResultType>(
         urlRequest: URLRequest,
         onReceiveContent: @Sendable @escaping (StreamingSession<ServerSentEventsStreamInterpreter<ResultType>>, ResultType) -> Void,
@@ -46,6 +61,7 @@ struct ImplicitURLSessionStreamingSessionFactory: StreamingSessionFactory {
         onComplete: @Sendable @escaping (StreamingSession<ServerSentEventsStreamInterpreter<ResultType>>, (any Error)?) -> Void
     ) -> StreamingSession<ServerSentEventsStreamInterpreter<ResultType>> where ResultType : Decodable, ResultType : Encodable, ResultType : Sendable {
         .init(
+            urlSessionFactory: urlSessionFactory,  // wangqi 2025-11-28: Pass custom factory
             urlRequest: urlRequest,
             interpreter: .init(parsingOptions: parsingOptions),
             sslDelegate: sslDelegate,
@@ -55,7 +71,7 @@ struct ImplicitURLSessionStreamingSessionFactory: StreamingSessionFactory {
             onComplete: onComplete
         )
     }
-    
+
     func makeAudioSpeechStreamingSession(
         urlRequest: URLRequest,
         onReceiveContent: @Sendable @escaping (StreamingSession<AudioSpeechStreamInterpreter>, AudioSpeechResult) -> Void,
@@ -63,6 +79,7 @@ struct ImplicitURLSessionStreamingSessionFactory: StreamingSessionFactory {
         onComplete: @Sendable @escaping (StreamingSession<AudioSpeechStreamInterpreter>, (any Error)?) -> Void
     ) -> StreamingSession<AudioSpeechStreamInterpreter> {
         .init(
+            urlSessionFactory: urlSessionFactory,  // wangqi 2025-11-28: Pass custom factory
             urlRequest: urlRequest,
             interpreter: .init(),
             sslDelegate: sslDelegate,
@@ -72,7 +89,7 @@ struct ImplicitURLSessionStreamingSessionFactory: StreamingSessionFactory {
             onComplete: onComplete
         )
     }
-    
+
     func makeModelResponseStreamingSession(
         urlRequest: URLRequest,
         onReceiveContent: @Sendable @escaping (StreamingSession<ModelResponseEventsStreamInterpreter>, ResponseStreamEvent) -> Void,
@@ -80,6 +97,7 @@ struct ImplicitURLSessionStreamingSessionFactory: StreamingSessionFactory {
         onComplete: @Sendable @escaping (StreamingSession<ModelResponseEventsStreamInterpreter>, (any Error)?) -> Void
     ) -> StreamingSession<ModelResponseEventsStreamInterpreter> {
         .init(
+            urlSessionFactory: urlSessionFactory,  // wangqi 2025-11-28: Pass custom factory
             urlRequest: urlRequest,
             interpreter: .init(),
             sslDelegate: sslDelegate,
