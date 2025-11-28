@@ -23,8 +23,6 @@ extension Bool: JSONDocument {}
 /// [number](https://json-schema.org/draft/2020-12/json-schema-core#section-4.2.1-3.10)
 /// An arbitrary-precision, base-10 decimal number value, from the JSON "number" value
 extension Decimal: JSONDocument {}
-//wangqi 2025-05-28
-extension Double: JSONDocument {}
 
 extension Array: JSONDocument where Element: JSONDocument {}
 extension Dictionary: JSONDocument where Key == String, Value: JSONDocument {}
