@@ -324,7 +324,7 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                 }
             case .tool:
                 if let content, let toolCallId {
-                    self = .tool(.init(content: .textContent(content), toolCallId: toolCallId))
+                    self = .tool(.init(content: .textContent(content), toolCallId: toolCallId, name: "", type: "function_call", arguments: "", status: "completed"))
                 } else {
                     return nil
                 }
@@ -380,7 +380,7 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
             toolCallId: String
         ) {
             if role == .tool {
-                self = .tool(.init(content: .textContent(content), toolCallId: toolCallId))
+                self = .tool(.init(content: .textContent(content), toolCallId: toolCallId, name: "", type: "function_call", arguments: "", status: "completed"))
             } else {
                 return nil
             }
@@ -855,6 +855,19 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                 }
             }
 
+            ///ToolCallParam is used to show tool call message in request and sent it back to AI.
+            ///It should be in the following format
+            /*
+             {
+               "arguments": "{\"location\":\"Tokyo, Japan\",\"units\":\"celsius\"}",
+               "call_id": "call_DT9FRKPPksAADdnM4iZONDZI",
+               "name": "get_weather",
+               "type": "function_call",
+               "id": "fc_0618e81b45401f14006928e650f1dc81979cc29ca04d2e8289",
+               "status": "completed"
+             },
+             */
+            /// wangqi modified 2025-11-30
             public struct ToolCallParam: Codable, Equatable, Sendable {
                 public typealias ToolsType = ChatQuery.ChatCompletionToolParam.ToolsType
 
@@ -864,14 +877,22 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                 public let function: Self.FunctionCall
                 /// The type of the tool. Currently, only `function` is supported.
                 public let type: Self.ToolsType
+                /// call_id - defaults to same value as id
+                public let call_id: String
+                /// status - defaults to "completed"
+                public let status: String
 
                 public init(
                     id: String,
-                    function:  Self.FunctionCall
+                    function: Self.FunctionCall,
+                    call_id: String? = nil,
+                    status: String = "completed"
                 ) {
                     self.id = id
                     self.function = function
                     self.type = .function
+                    self.call_id = call_id ?? id
+                    self.status = status
                 }
 
                 public init(from decoder: any Decoder) throws {
@@ -882,6 +903,27 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                     self.id = try container.decodeString(forKey: .id, parsingOptions: parsingOptions)
                     self.function = try container.decode(FunctionCall.self, forKey: .function)
                     self.type = try container.decodeIfPresent(ToolsType.self, forKey: .type) ?? .function
+                    // call_id defaults to id if not present
+                    self.call_id = try container.decodeIfPresent(String.self, forKey: .call_id) ?? self.id
+                    // status defaults to "completed" if not present
+                    self.status = try container.decodeIfPresent(String.self, forKey: .status) ?? "completed"
+                }
+
+                public func encode(to encoder: Encoder) throws {
+                    var container = encoder.container(keyedBy: CodingKeys.self)
+                    try container.encode(id, forKey: .id)
+                    try container.encode(function, forKey: .function)
+                    try container.encode(type, forKey: .type)
+                    try container.encode(call_id, forKey: .call_id)
+                    try container.encode(status, forKey: .status)
+                }
+
+                public enum CodingKeys: String, CodingKey {
+                    case id
+                    case function
+                    case type
+                    case call_id = "tool_call_id"
+                    case status
                 }
 
                 public struct FunctionCall: Codable, Equatable, Sendable {
@@ -901,6 +943,7 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
             }
         }
 
+        /// wangqi modified 2025-11-30
         public struct ToolMessageParam: Codable, Equatable, Sendable {
             public typealias Role = ChatQuery.ChatCompletionMessageParam.Role
 
@@ -908,21 +951,63 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
             public let content: TextContent
             /// The role of the messages author, in this case tool.
             public let role: Self.Role = .tool
-            /// Tool call that this message is responding to.
+            /// Tool call that this message is responding to (maps to call_id in JSON).
             public let toolCallId: String
+            /// The name of the tool/function that was called.
+            public let name: String
+            /// The type of tool call, defaults to "function_call".
+            public let type: String
+            /// The original arguments passed to the tool.
+            public let arguments: String
+            /// The status of the tool call, defaults to "completed".
+            public let status: String
 
             public init(
                 content: TextContent,
-                toolCallId: String
+                toolCallId: String,
+                name: String = "",
+                type: String = "function_call",
+                arguments: String = "",
+                status: String = "completed"
             ) {
                 self.content = content
                 self.toolCallId = toolCallId
+                self.name = name
+                self.type = type
+                self.arguments = arguments
+                self.status = status
+            }
+
+            public init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                self.content = try container.decode(TextContent.self, forKey: .content)
+                self.toolCallId = try container.decode(String.self, forKey: .toolCallId)
+                self.name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+                self.type = try container.decodeIfPresent(String.self, forKey: .type) ?? "function_call"
+                self.arguments = try container.decodeIfPresent(String.self, forKey: .arguments) ?? ""
+                self.status = try container.decodeIfPresent(String.self, forKey: .status) ?? "completed"
+            }
+
+            public func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(content, forKey: .content)
+                try container.encode(role, forKey: .role)
+                try container.encode(toolCallId, forKey: .toolCallId)
+                try container.encode(name, forKey: .name)
+                try container.encode(type, forKey: .type)
+                try container.encode(arguments, forKey: .arguments)
+                try container.encode(status, forKey: .status)
             }
 
             public enum CodingKeys: String, CodingKey {
                 case content
                 case role
+                // OpenAI Responses API uses 'call_id' rather than 'tool_call_id'
                 case toolCallId = "tool_call_id"
+                case name
+                case type
+                case arguments
+                case status
             }
         }
 
@@ -1441,6 +1526,10 @@ extension ChatQuery {
         }
         if let presencePenalty = presencePenalty {
             try container.encode(presencePenalty, forKey: .presencePenalty)
+        }
+        // wangqi 2025-11-29 Add parallelToolCalls
+        if let parallelToolCalls = parallelToolCalls {
+            try container.encode(parallelToolCalls, forKey: .parallelToolCalls)
         }
         if let topP = topP {
             try container.encode(topP, forKey: .topP)
