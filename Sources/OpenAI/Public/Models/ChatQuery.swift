@@ -140,7 +140,14 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
     
     /// This tool searches the web for relevant results to use in a response. Learn more about the [web search tool](https://platform.openai.com/docs/guides/tools-web-search).
     public let webSearchOptions: WebSearchOptions?
-    
+
+    // wangqi 2025-12-07: OpenRouter-specific properties
+    /// OpenRouter-specific: Array of plugins to use for this request (e.g., web search)
+    public let plugins: [OpenRouterPlugin]?
+
+    /// OpenRouter-specific: Web search options for controlling search behavior
+    public let openRouterWebSearchOptions: OpenRouterWebSearchOptions?
+
     /// If set to true, the model response data will be streamed to the client as it is generated using [server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#Event_stream_format). See the [Streaming section](https://platform.openai.com/docs/api-reference/chat/streaming) for more information, along with the [streaming responses](https://platform.openai.com/docs/guides/streaming-responses) guide for more information on how to handle the streaming events.
     ///
     /// Defaults to `false`
@@ -188,6 +195,8 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
         topP: Double? = nil,
         user: String? = nil,
         webSearchOptions: WebSearchOptions? = nil,
+        plugins: [OpenRouterPlugin]? = nil,
+        openRouterWebSearchOptions: OpenRouterWebSearchOptions? = nil,
         stream: Bool = false,
         streamOptions: StreamOptions? = nil
     ) {
@@ -215,6 +224,8 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
         self.topP = topP
         self.user = user
         self.webSearchOptions = webSearchOptions
+        self.plugins = plugins
+        self.openRouterWebSearchOptions = openRouterWebSearchOptions
         self.stream = stream
         self.streamOptions = streamOptions
         self.audioOptions = audioOptions
@@ -1459,10 +1470,51 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
         case topP = "top_p"
         case user
         case webSearchOptions = "web_search_options"
+        // wangqi 2025-12-07: OpenRouter-specific keys
+        case plugins
+        // Note: openRouterWebSearchOptions also encodes to "web_search_options" but is handled separately in encode()
         case stream
         case streamOptions = "stream_options"
         case audioOptions = "audio"
         case modalities = "modalities"
+    }
+
+    // wangqi 2025-12-07: Custom decoder to handle new OpenRouter properties
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.messages = try container.decode([ChatCompletionMessageParam].self, forKey: .messages)
+        self.model = try container.decode(Model.self, forKey: .model)
+        self.reasoningEffort = try container.decodeIfPresent(ReasoningEffort.self, forKey: .reasoningEffort)
+        self.frequencyPenalty = try container.decodeIfPresent(Double.self, forKey: .frequencyPenalty)
+        self.logitBias = try container.decodeIfPresent([String: Int].self, forKey: .logitBias)
+        self.logprobs = try container.decodeIfPresent(Bool.self, forKey: .logprobs)
+        self.maxTokens = try container.decodeIfPresent(Int.self, forKey: .maxTokens)
+        self.maxCompletionTokens = try container.decodeIfPresent(Int.self, forKey: .maxCompletionTokens)
+        self.metadata = try container.decodeIfPresent([String: String].self, forKey: .metadata)
+        self.n = try container.decodeIfPresent(Int.self, forKey: .n)
+        self.parallelToolCalls = try container.decodeIfPresent(Bool.self, forKey: .parallelToolCalls)
+        self.prediction = try container.decodeIfPresent(PredictedOutputConfig.self, forKey: .prediction)
+        self.presencePenalty = try container.decodeIfPresent(Double.self, forKey: .presencePenalty)
+        self.responseFormat = try container.decodeIfPresent(ResponseFormat.self, forKey: .responseFormat)
+        self.seed = try container.decodeIfPresent(Int.self, forKey: .seed)
+        self.serviceTier = try container.decodeIfPresent(ServiceTier.self, forKey: .serviceTier)
+        self.stop = try container.decodeIfPresent(Stop.self, forKey: .stop)
+        self.store = try container.decodeIfPresent(Bool.self, forKey: .store)
+        self.temperature = try container.decodeIfPresent(Double.self, forKey: .temperature)
+        self.toolChoice = try container.decodeIfPresent(ChatCompletionFunctionCallOptionParam.self, forKey: .toolChoice)
+        self.tools = try container.decodeIfPresent([ChatCompletionToolParam].self, forKey: .tools)
+        self.topLogprobs = try container.decodeIfPresent(Int.self, forKey: .topLogprobs)
+        self.topP = try container.decodeIfPresent(Double.self, forKey: .topP)
+        self.user = try container.decodeIfPresent(String.self, forKey: .user)
+        self.webSearchOptions = try container.decodeIfPresent(WebSearchOptions.self, forKey: .webSearchOptions)
+        self.plugins = try container.decodeIfPresent([OpenRouterPlugin].self, forKey: .plugins)
+        // Note: openRouterWebSearchOptions shares the same key as webSearchOptions
+        self.openRouterWebSearchOptions = try container.decodeIfPresent(OpenRouterWebSearchOptions.self, forKey: .webSearchOptions)
+        self.stream = try container.decodeIfPresent(Bool.self, forKey: .stream) ?? false
+        self.streamOptions = try container.decodeIfPresent(StreamOptions.self, forKey: .streamOptions)
+        self.audioOptions = try container.decodeIfPresent(AudioOptions.self, forKey: .audioOptions)
+        self.modalities = try container.decodeIfPresent([ChatCompletionModalities].self, forKey: .modalities)
     }
 }
 
@@ -1534,5 +1586,81 @@ extension ChatQuery {
         if let topP = topP {
             try container.encode(topP, forKey: .topP)
         }
+
+        // wangqi 2025-12-07: OpenRouter-specific encoding
+        // Encode plugins array if present
+        try container.encodeIfPresent(plugins, forKey: .plugins)
+
+        // For web_search_options: prefer OpenRouter format if set, otherwise use OpenAI format
+        if let orWebSearchOptions = openRouterWebSearchOptions {
+            try container.encode(orWebSearchOptions, forKey: .webSearchOptions)
+        } else {
+            try container.encodeIfPresent(webSearchOptions, forKey: .webSearchOptions)
+        }
+    }
+}
+
+// MARK: - OpenRouter Plugin Types (wangqi 2025-12-07)
+
+/// Plugin configuration for OpenRouter API
+/// Designed for forward compatibility - ignores unknown fields and uses defaults for missing ones
+public struct OpenRouterPlugin: Codable, Equatable, Sendable {
+    public let id: String
+    public var engine: String?
+    public var maxResults: Int?
+    public var searchPrompt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case engine
+        case maxResults = "max_results"
+        case searchPrompt = "search_prompt"
+    }
+
+    public init(id: String, engine: String? = nil, maxResults: Int? = nil, searchPrompt: String? = nil) {
+        self.id = id
+        self.engine = engine
+        self.maxResults = maxResults
+        self.searchPrompt = searchPrompt
+    }
+
+    /// Lenient decoder that handles missing/unknown fields gracefully
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // id is required, but provide a fallback for robustness
+        self.id = (try? container.decode(String.self, forKey: .id)) ?? "web"
+        // All other fields are optional with nil defaults
+        self.engine = try? container.decodeIfPresent(String.self, forKey: .engine)
+        self.maxResults = try? container.decodeIfPresent(Int.self, forKey: .maxResults)
+        self.searchPrompt = try? container.decodeIfPresent(String.self, forKey: .searchPrompt)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encodeIfPresent(engine, forKey: .engine)
+        try container.encodeIfPresent(maxResults, forKey: .maxResults)
+        try container.encodeIfPresent(searchPrompt, forKey: .searchPrompt)
+    }
+}
+
+/// Web search options for OpenRouter API
+/// Controls how web search results are processed
+public struct OpenRouterWebSearchOptions: Codable, Equatable, Sendable {
+    /// Size of search context: "low", "medium", or "high"
+    public var searchContextSize: String?
+
+    enum CodingKeys: String, CodingKey {
+        case searchContextSize = "search_context_size"
+    }
+
+    public init(searchContextSize: String? = "medium") {
+        self.searchContextSize = searchContextSize
+    }
+
+    /// Lenient decoder
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.searchContextSize = try? container.decodeIfPresent(String.self, forKey: .searchContextSize)
     }
 }
