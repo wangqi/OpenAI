@@ -14,7 +14,7 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
     public struct Choice: Codable, Equatable, Sendable {
         public typealias FinishReason = ChatResult.Choice.FinishReason
 
-        public struct ChoiceDelta: Codable, Equatable, Sendable {
+        public struct ChoiceDelta: Sendable {
             public typealias Role = ChatQuery.ChatCompletionMessageParam.Role
 
             /// The contents of the chunk message.
@@ -49,7 +49,17 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
             public var reasoning: String? {
                 _reasoning ?? _reasoningContent
             }
-            
+
+            /// Value for `reasoning_details` field (OpenRouter/MiniMax format)
+            /// Array of reasoning detail objects - uses [String: Any] to avoid coupling with app's AnyCodable
+            /// wangqi added 2025-12-09
+            internal let _reasoningDetails: [[String: Any]]?
+
+            /// Reasoning details array (OpenRouter/MiniMax)
+            public var reasoningDetails: [[String: Any]]? {
+                _reasoningDetails
+            }
+
             /// Media content from extended provider fields (images, etc.)
             public let images: [MediaContent]?
 
@@ -117,12 +127,13 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                 case toolCalls = "tool_calls"
                 case _reasoning = "reasoning"
                 case _reasoningContent = "reasoning_content"
+                case _reasoningDetails = "reasoning_details"
                 case images
             }
             
             public init(from decoder: Decoder) throws {
                 let container = try decoder.container(keyedBy: CodingKeys.self)
-                
+
                 // Decode standard fields
                 content = try container.decodeIfPresent(String.self, forKey: .content)
                 audio = try container.decodeIfPresent(ChoiceDeltaAudio.self, forKey: .audio)
@@ -130,9 +141,37 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                 toolCalls = try container.decodeIfPresent([ChoiceDeltaToolCall].self, forKey: .toolCalls)
                 _reasoning = try container.decodeIfPresent(String.self, forKey: ._reasoning)
                 _reasoningContent = try container.decodeIfPresent(String.self, forKey: ._reasoningContent)
-                
+
+                // Decode reasoning_details using JSONValue (wangqi 2025-12-09)
+                if let jsonDetails = try container.decodeIfPresent([[String: JSONValue]].self, forKey: ._reasoningDetails) {
+                    _reasoningDetails = jsonDetails.map { dict in
+                        dict.mapValues { $0.toAny() }
+                    }
+                } else {
+                    _reasoningDetails = nil
+                }
+
                 // Decode images using MediaContentFactory
                 images = MediaContentFactory.decodeMediaContent(from: container, forKey: .images)
+            }
+
+            // wangqi 2025-12-09: Custom encode() for Codable conformance
+            public func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encodeIfPresent(content, forKey: .content)
+                try container.encodeIfPresent(audio, forKey: .audio)
+                try container.encodeIfPresent(role, forKey: .role)
+                try container.encodeIfPresent(toolCalls, forKey: .toolCalls)
+                try container.encodeIfPresent(_reasoning, forKey: ._reasoning)
+                try container.encodeIfPresent(_reasoningContent, forKey: ._reasoningContent)
+                // Encode reasoning_details using JSONValue
+                if let details = _reasoningDetails {
+                    let jsonDetails = details.map { dict in
+                        dict.mapValues { JSONValue.from($0) }
+                    }
+                    try container.encode(jsonDetails, forKey: ._reasoningDetails)
+                }
+                // Note: images are not encoded - they are only decoded from extended fields
             }
         }
 
@@ -269,5 +308,40 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
         self.usage = try? container.decodeIfPresent(ChatResult.CompletionUsage.self, forKey: .usage)
         self.serviceTier = try container.decodeIfPresent(ServiceTier.self, forKey: .serviceTier)
         self.provider = try container.decodeIfPresent(String.self, forKey: .provider)
+    }
+}
+
+// MARK: - ChoiceDelta Codable Conformance (wangqi 2025-12-09)
+extension ChatStreamResult.Choice.ChoiceDelta: Codable {}
+
+// MARK: - ChoiceDelta Equatable Conformance (wangqi 2025-12-09)
+extension ChatStreamResult.Choice.ChoiceDelta: Equatable {
+    public static func == (lhs: ChatStreamResult.Choice.ChoiceDelta, rhs: ChatStreamResult.Choice.ChoiceDelta) -> Bool {
+        guard lhs.content == rhs.content,
+              lhs.audio == rhs.audio,
+              lhs.role == rhs.role,
+              lhs.toolCalls == rhs.toolCalls,
+              lhs._reasoning == rhs._reasoning,
+              lhs._reasoningContent == rhs._reasoningContent else {
+            return false
+        }
+
+        // Compare _reasoningDetails by converting to JSON (since [String: Any] isn't Equatable)
+        if lhs._reasoningDetails == nil && rhs._reasoningDetails == nil {
+            return true
+        }
+        guard let lhsDetails = lhs._reasoningDetails,
+              let rhsDetails = rhs._reasoningDetails else {
+            return false
+        }
+        guard JSONSerialization.isValidJSONObject(lhsDetails),
+              JSONSerialization.isValidJSONObject(rhsDetails) else {
+            return false
+        }
+        let lhsData = try? JSONSerialization.data(withJSONObject: lhsDetails)
+        let rhsData = try? JSONSerialization.data(withJSONObject: rhsDetails)
+
+        // Note: images are not compared since they are optional media extensions
+        return lhsData == rhsData
     }
 }
