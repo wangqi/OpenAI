@@ -133,7 +133,16 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
     ///
     /// Defaults to 1
     public let topP: Double?
-    
+
+    // wangqi 2025-12-14: OpenRouter-specific parameter
+    /// Minimum probability threshold for token sampling (OpenRouter only)
+    ///
+    /// Sets a minimum probability mass that a token must have to be considered. This helps filter out low-probability tokens.
+    /// Supported by OpenRouter API but not standard OpenAI API.
+    ///
+    /// Defaults to 0
+    public let minP: Double?
+
     /// A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse.
     /// [Learn more.](https://platform.openai.com/docs/guides/safety-best-practices#end-user-ids)
     public let user: String?
@@ -200,6 +209,7 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
         tools: [Self.ChatCompletionToolParam]? = nil,
         topLogprobs: Int? = nil,
         topP: Double? = nil,
+        minP: Double? = nil,
         user: String? = nil,
         webSearchOptions: WebSearchOptions? = nil,
         plugins: [OpenRouterPlugin]? = nil,
@@ -231,6 +241,7 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
         self.tools = tools
         self.topLogprobs = topLogprobs
         self.topP = topP
+        self.minP = minP
         self.user = user
         self.webSearchOptions = webSearchOptions
         self.plugins = plugins
@@ -1501,6 +1512,7 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
         case tools
         case topLogprobs = "top_logprobs"
         case topP = "top_p"
+        case minP = "min_p"
         case user
         case webSearchOptions = "web_search_options"
         // wangqi 2025-12-07: OpenRouter-specific keys
@@ -1542,6 +1554,7 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
         self.tools = try container.decodeIfPresent([ChatCompletionToolParam].self, forKey: .tools)
         self.topLogprobs = try container.decodeIfPresent(Int.self, forKey: .topLogprobs)
         self.topP = try container.decodeIfPresent(Double.self, forKey: .topP)
+        self.minP = try container.decodeIfPresent(Double.self, forKey: .minP)
         self.user = try container.decodeIfPresent(String.self, forKey: .user)
         self.webSearchOptions = try container.decodeIfPresent(WebSearchOptions.self, forKey: .webSearchOptions)
         self.plugins = try container.decodeIfPresent([OpenRouterPlugin].self, forKey: .plugins)
