@@ -60,6 +60,16 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                 _reasoningDetails
             }
 
+            /// Thought signature for Gemini 3.0 function calling
+            /// This is an encrypted token that preserves the model's reasoning state
+            /// wangqi added 2025-12-24
+            internal let _thoughtSignature: String?
+
+            /// Thought signature (Gemini 3.0)
+            public var thoughtSignature: String? {
+                _thoughtSignature
+            }
+
             /// Media content from extended provider fields (images, etc.)
             public let images: [MediaContent]?
 
@@ -91,16 +101,72 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                 public let function: Self.ChoiceDeltaToolCallFunction?
                 /// The type of the tool. Currently, only function is supported.
                 public let type: String?
+                /// Extra content from provider-specific extensions (e.g., Gemini's thought_signature)
+                /// wangqi 2025-12-24
+                public let extraContent: [String: Any]?
 
                 public init(
                     index: Int,
                     id: String? = nil,
-                    function: Self.ChoiceDeltaToolCallFunction? = nil
+                    function: Self.ChoiceDeltaToolCallFunction? = nil,
+                    extraContent: [String: Any]? = nil
                 ) {
                     self.index = index
                     self.id = id
                     self.function = function
                     self.type = "function"
+                    self.extraContent = extraContent
+                }
+
+                /// Extract thought_signature from Gemini's nested structure
+                /// Returns the signature if found in extra_content.google.thought_signature
+                /// wangqi 2025-12-24
+                public var thoughtSignature: String? {
+                    guard let extraContent = extraContent,
+                          let google = extraContent["google"] as? [String: Any],
+                          let signature = google["thought_signature"] as? String else {
+                        return nil
+                    }
+                    return signature
+                }
+
+                // Custom Codable implementation for extra_content handling
+                // wangqi 2025-12-24
+                public enum CodingKeys: String, CodingKey {
+                    case index
+                    case id
+                    case function
+                    case type
+                    case extraContent = "extra_content"
+                }
+
+                public init(from decoder: Decoder) throws {
+                    let container = try decoder.container(keyedBy: CodingKeys.self)
+                    self.index = try container.decodeIfPresent(Int.self, forKey: .index)
+                    self.id = try container.decodeIfPresent(String.self, forKey: .id)
+                    self.function = try container.decodeIfPresent(ChoiceDeltaToolCallFunction.self, forKey: .function)
+                    self.type = try container.decodeIfPresent(String.self, forKey: .type) ?? "function"
+
+                    // Decode extra_content using JSONValue
+                    if let jsonExtraContent = try container.decodeIfPresent([String: JSONValue].self, forKey: .extraContent) {
+                        self.extraContent = jsonExtraContent.mapValues { $0.toAny() }
+                    } else {
+                        self.extraContent = nil
+                    }
+                }
+
+                public func encode(to encoder: Encoder) throws {
+                    var container = encoder.container(keyedBy: CodingKeys.self)
+                    try container.encodeIfPresent(index, forKey: .index)
+                    try container.encodeIfPresent(id, forKey: .id)
+                    try container.encodeIfPresent(function, forKey: .function)
+                    try container.encodeIfPresent(type, forKey: .type)
+
+                    // Encode extra_content using JSONValue
+                    if let extraContent = extraContent {
+                        let jsonExtraContent = extraContent.mapValues { JSONValue.from($0) }
+                        try container.encode(jsonExtraContent, forKey: .extraContent)
+                    }
                 }
 
                 public struct ChoiceDeltaToolCallFunction: Codable, Equatable, Sendable {
@@ -128,6 +194,7 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                 case _reasoning = "reasoning"
                 case _reasoningContent = "reasoning_content"
                 case _reasoningDetails = "reasoning_details"
+                case _thoughtSignature = "thought_signature"  // wangqi 2025-12-24
                 case images
             }
             
@@ -151,6 +218,9 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                     _reasoningDetails = nil
                 }
 
+                // Decode thought_signature for Gemini 3.0 (wangqi 2025-12-24)
+                _thoughtSignature = try container.decodeIfPresent(String.self, forKey: ._thoughtSignature)
+
                 // Decode images using MediaContentFactory
                 images = MediaContentFactory.decodeMediaContent(from: container, forKey: .images)
             }
@@ -171,6 +241,8 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                     }
                     try container.encode(jsonDetails, forKey: ._reasoningDetails)
                 }
+                // Encode thought_signature for Gemini 3.0 (wangqi 2025-12-24)
+                try container.encodeIfPresent(_thoughtSignature, forKey: ._thoughtSignature)
                 // Note: images are not encoded - they are only decoded from extended fields
             }
         }
@@ -322,7 +394,8 @@ extension ChatStreamResult.Choice.ChoiceDelta: Equatable {
               lhs.role == rhs.role,
               lhs.toolCalls == rhs.toolCalls,
               lhs._reasoning == rhs._reasoning,
-              lhs._reasoningContent == rhs._reasoningContent else {
+              lhs._reasoningContent == rhs._reasoningContent,
+              lhs._thoughtSignature == rhs._thoughtSignature else {  // wangqi 2025-12-24
             return false
         }
 
@@ -342,6 +415,34 @@ extension ChatStreamResult.Choice.ChoiceDelta: Equatable {
         let rhsData = try? JSONSerialization.data(withJSONObject: rhsDetails)
 
         // Note: images are not compared since they are optional media extensions
+        return lhsData == rhsData
+    }
+}
+
+// MARK: - ChoiceDeltaToolCall Equatable Conformance (wangqi 2025-12-24)
+extension ChatStreamResult.Choice.ChoiceDelta.ChoiceDeltaToolCall {
+    public static func == (lhs: ChatStreamResult.Choice.ChoiceDelta.ChoiceDeltaToolCall, rhs: ChatStreamResult.Choice.ChoiceDelta.ChoiceDeltaToolCall) -> Bool {
+        guard lhs.index == rhs.index,
+              lhs.id == rhs.id,
+              lhs.function == rhs.function,
+              lhs.type == rhs.type else {
+            return false
+        }
+
+        // Compare extraContent by converting to JSON (since [String: Any] isn't Equatable)
+        if lhs.extraContent == nil && rhs.extraContent == nil {
+            return true
+        }
+        guard let lhsExtra = lhs.extraContent,
+              let rhsExtra = rhs.extraContent else {
+            return false
+        }
+        guard JSONSerialization.isValidJSONObject(lhsExtra),
+              JSONSerialization.isValidJSONObject(rhsExtra) else {
+            return false
+        }
+        let lhsData = try? JSONSerialization.data(withJSONObject: lhsExtra)
+        let rhsData = try? JSONSerialization.data(withJSONObject: rhsExtra)
         return lhsData == rhsData
     }
 }

@@ -868,6 +868,11 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
             /// Uses [[String: Any]] to avoid coupling with app's AnyCodable - converted at boundaries
             public let reasoningDetails: [[String: Any]]?
 
+            /// Thought signature for Gemini 3.0 function calling (required when using tool calls)
+            /// This is an encrypted token that preserves the model's reasoning state during multi-turn conversations
+            /// wangqi 2025-12-24
+            public let thoughtSignature: String?
+
             /// Field name to use for reasoningContent: "reasoning_content" or "reasoning"
             /// Not encoded - only used to control encoding behavior
             /// Included in Equatable comparison since it affects serialization behavior
@@ -881,6 +886,7 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                 toolCalls: [Self.ToolCallParam]? = nil,
                 reasoningContent: String? = nil,
                 reasoningDetails: [[String: Any]]? = nil,
+                thoughtSignature: String? = nil,
                 reasoningFieldName: String = "reasoning_content"  // Default for DeepSeek/Kimi
             ) {
                 self.content = content
@@ -889,6 +895,7 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                 self.toolCalls = toolCalls
                 self.reasoningContent = reasoningContent
                 self.reasoningDetails = reasoningDetails
+                self.thoughtSignature = thoughtSignature
                 self.reasoningFieldName = reasoningFieldName
             }
 
@@ -900,6 +907,7 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                 case toolCalls = "tool_calls"
                 case reasoningContent = "reasoning_content"
                 case reasoningDetails = "reasoning_details"
+                case thoughtSignature = "thought_signature"  // wangqi 2025-12-24
             }
 
             public struct Audio: Codable, Equatable, Sendable {
@@ -1680,6 +1688,11 @@ extension ChatQuery.ChatCompletionMessageParam.AssistantMessageParam: Codable {
             }
             try container.encode(jsonDetails, forKey: DynamicCodingKey(stringValue: "reasoning_details")!)
         }
+
+        // Encode thought_signature for Gemini 3.0 (wangqi 2025-12-24)
+        if let signature = thoughtSignature {
+            try container.encode(signature, forKey: DynamicCodingKey(stringValue: "thought_signature")!)
+        }
     }
 
     // Standard decoding (uses reasoning_content)
@@ -1699,6 +1712,10 @@ extension ChatQuery.ChatCompletionMessageParam.AssistantMessageParam: Codable {
         } else {
             self.reasoningDetails = nil
         }
+
+        // Decode thought_signature for Gemini 3.0 (wangqi 2025-12-24)
+        self.thoughtSignature = try container.decodeIfPresent(String.self, forKey: .thoughtSignature)
+
         self.reasoningFieldName = "reasoning_content"
     }
 }
@@ -1713,6 +1730,7 @@ extension ChatQuery.ChatCompletionMessageParam.AssistantMessageParam: Equatable 
               lhs.name == rhs.name,
               lhs.toolCalls == rhs.toolCalls,
               lhs.reasoningContent == rhs.reasoningContent,
+              lhs.thoughtSignature == rhs.thoughtSignature,  // wangqi 2025-12-24
               lhs.reasoningFieldName == rhs.reasoningFieldName else {
             return false
         }
