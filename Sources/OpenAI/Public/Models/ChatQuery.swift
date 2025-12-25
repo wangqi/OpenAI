@@ -930,7 +930,7 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                "status": "completed"
              },
              */
-            /// wangqi modified 2025-11-30
+            /// wangqi modified 2025-11-30, 2025-12-25
             public struct ToolCallParam: Codable, Equatable, Sendable {
                 public typealias ToolsType = ChatQuery.ChatCompletionToolParam.ToolsType
 
@@ -944,18 +944,35 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                 public let call_id: String
                 /// status - defaults to "completed"
                 public let status: String
+                /// Extra content from provider-specific extensions (e.g., Gemini's thought_signature)
+                /// wangqi 2025-12-25
+                public let extraContent: [String: Any]?
+
+                /// Extract thought_signature from Gemini's nested structure
+                /// Returns the signature if found in extra_content.google.thought_signature
+                /// wangqi 2025-12-25
+                public var thoughtSignature: String? {
+                    guard let extraContent = extraContent,
+                          let google = extraContent["google"] as? [String: Any],
+                          let signature = google["thought_signature"] as? String else {
+                        return nil
+                    }
+                    return signature
+                }
 
                 public init(
                     id: String,
                     function: Self.FunctionCall,
                     call_id: String? = nil,
-                    status: String = "completed"
+                    status: String = "completed",
+                    extraContent: [String: Any]? = nil
                 ) {
                     self.id = id
                     self.function = function
                     self.type = .function
                     self.call_id = call_id ?? id
                     self.status = status
+                    self.extraContent = extraContent
                 }
 
                 public init(from decoder: any Decoder) throws {
@@ -970,6 +987,12 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                     self.call_id = try container.decodeIfPresent(String.self, forKey: .call_id) ?? self.id
                     // status defaults to "completed" if not present
                     self.status = try container.decodeIfPresent(String.self, forKey: .status) ?? "completed"
+                    // Decode extra_content using JSONValue (wangqi 2025-12-25)
+                    if let jsonExtraContent = try container.decodeIfPresent([String: JSONValue].self, forKey: .extraContent) {
+                        self.extraContent = jsonExtraContent.mapValues { $0.toAny() }
+                    } else {
+                        self.extraContent = nil
+                    }
                 }
 
                 public func encode(to encoder: Encoder) throws {
@@ -979,6 +1002,11 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                     try container.encode(type, forKey: .type)
                     try container.encode(call_id, forKey: .call_id)
                     try container.encode(status, forKey: .status)
+                    // Encode extra_content using JSONValue (wangqi 2025-12-25)
+                    if let extraContent = extraContent {
+                        let jsonExtraContent = extraContent.mapValues { JSONValue.from($0) }
+                        try container.encode(jsonExtraContent, forKey: .extraContent)
+                    }
                 }
 
                 public enum CodingKeys: String, CodingKey {
@@ -987,6 +1015,34 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                     case type
                     case call_id = "tool_call_id"
                     case status
+                    case extraContent = "extra_content"
+                }
+
+                // Custom Equatable implementation for [String: Any] comparison (wangqi 2025-12-25)
+                public static func == (lhs: ToolCallParam, rhs: ToolCallParam) -> Bool {
+                    guard lhs.id == rhs.id,
+                          lhs.function == rhs.function,
+                          lhs.type == rhs.type,
+                          lhs.call_id == rhs.call_id,
+                          lhs.status == rhs.status else {
+                        return false
+                    }
+
+                    // Compare extraContent by converting to JSON
+                    if lhs.extraContent == nil && rhs.extraContent == nil {
+                        return true
+                    }
+                    guard let lhsExtra = lhs.extraContent,
+                          let rhsExtra = rhs.extraContent else {
+                        return false
+                    }
+                    guard JSONSerialization.isValidJSONObject(lhsExtra),
+                          JSONSerialization.isValidJSONObject(rhsExtra) else {
+                        return false
+                    }
+                    let lhsData = try? JSONSerialization.data(withJSONObject: lhsExtra)
+                    let rhsData = try? JSONSerialization.data(withJSONObject: rhsExtra)
+                    return lhsData == rhsData
                 }
 
                 public struct FunctionCall: Codable, Equatable, Sendable {

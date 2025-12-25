@@ -60,16 +60,6 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                 _reasoningDetails
             }
 
-            /// Thought signature for Gemini 3.0 function calling
-            /// This is an encrypted token that preserves the model's reasoning state
-            /// wangqi added 2025-12-24
-            internal let _thoughtSignature: String?
-
-            /// Thought signature (Gemini 3.0)
-            public var thoughtSignature: String? {
-                _thoughtSignature
-            }
-
             /// Media content from extended provider fields (images, etc.)
             public let images: [MediaContent]?
 
@@ -194,7 +184,6 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                 case _reasoning = "reasoning"
                 case _reasoningContent = "reasoning_content"
                 case _reasoningDetails = "reasoning_details"
-                case _thoughtSignature = "thought_signature"  // wangqi 2025-12-24
                 case images
             }
             
@@ -218,9 +207,6 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                     _reasoningDetails = nil
                 }
 
-                // Decode thought_signature for Gemini 3.0 (wangqi 2025-12-24)
-                _thoughtSignature = try container.decodeIfPresent(String.self, forKey: ._thoughtSignature)
-
                 // Decode images using MediaContentFactory
                 images = MediaContentFactory.decodeMediaContent(from: container, forKey: .images)
             }
@@ -241,8 +227,6 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                     }
                     try container.encode(jsonDetails, forKey: ._reasoningDetails)
                 }
-                // Encode thought_signature for Gemini 3.0 (wangqi 2025-12-24)
-                try container.encodeIfPresent(_thoughtSignature, forKey: ._thoughtSignature)
                 // Note: images are not encoded - they are only decoded from extended fields
             }
         }
@@ -394,8 +378,7 @@ extension ChatStreamResult.Choice.ChoiceDelta: Equatable {
               lhs.role == rhs.role,
               lhs.toolCalls == rhs.toolCalls,
               lhs._reasoning == rhs._reasoning,
-              lhs._reasoningContent == rhs._reasoningContent,
-              lhs._thoughtSignature == rhs._thoughtSignature else {  // wangqi 2025-12-24
+              lhs._reasoningContent == rhs._reasoningContent else {
             return false
         }
 
