@@ -303,8 +303,10 @@ public enum Components {
                         Swift.String.self,
                         forKey: ._type
                     )
+                    // wangqi 2026-01-08: Added "auto" to support code_interpreter responses from OpenAI API
+                    // The server returns {"type": "auto"} but generated code only expected schema names
                     switch discriminator {
-                    case "CodeInterpreterToolAuto", "#/components/schemas/CodeInterpreterToolAuto":
+                    case "auto", "CodeInterpreterToolAuto", "#/components/schemas/CodeInterpreterToolAuto":
                         self = .codeInterpreterToolAuto(try .init(from: decoder))
                     default:
                         throw Swift.DecodingError.unknownOneOfDiscriminator(
