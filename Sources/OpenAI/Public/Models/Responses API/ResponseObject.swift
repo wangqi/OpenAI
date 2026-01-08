@@ -37,7 +37,8 @@ public struct ResponseObject: Codable, Equatable, Sendable {
     /// Set of 16 key-value pairs that can be attached to an object. This can be useful for storing additional information about the object in a structured format, and querying for objects via API or the dashboard.
     ///
     /// Keys are strings with a maximum length of 64 characters. Values are strings with a maximum length of 512 characters.
-    public let metadata: [String: String]
+    /// wangqi 2026-01-08: Made optional to support servers that don't return metadata
+    public let metadata: [String: String]?
     
     /// Model ID used to generate the response, like `gpt-4o` or `o1`. OpenAI offers a wide range of models with different capabilities, performance characteristics, and price points. Refer to the [model guide](https://platform.openai.com/docs/models) to browse and compare available models.
     public let model: String
@@ -51,7 +52,8 @@ public struct ResponseObject: Codable, Equatable, Sendable {
     public let output: [OutputItem]
     
     /// Whether to allow the model to run tool calls in parallel.
-    public let parallelToolCalls: Bool
+    /// wangqi 2026-01-08: Made optional to support servers that don't return this field
+    public let parallelToolCalls: Bool?
     
     /// The unique ID of the previous response to the model. Use this to create multi-turn conversations. Learn more about [conversation state](https://platform.openai.com/docs/guides/conversation-state).
     public let previousResponseId: String?
@@ -70,17 +72,20 @@ public struct ResponseObject: Codable, Equatable, Sendable {
     /// Configuration options for a text response from the model. Can be plain text or structured JSON data. Learn more:
     /// - [Text inputs and outputs](https://platform.openai.com/docs/guides/text)
     /// - [Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs)
-    public let text: ResponseProperties.TextPayload
-    
+    /// wangqi 2026-01-08: Made optional to support servers that don't return this field
+    public let text: ResponseProperties.TextPayload?
+
     /// How the model should select which tool (or tools) to use when generating a response. See the `tools` parameter to see how to specify which tools the model can call.
-    public let toolChoice: ResponseProperties.ToolChoicePayload
-    
+    /// wangqi 2026-01-08: Made optional to support servers that don't return this field
+    public let toolChoice: ResponseProperties.ToolChoicePayload?
+
     /// An array of tools the model may call while generating a response. You can specify which tool to use by setting the `tool_choice` parameter.
     ///
     /// The two categories of tools you can provide the model are:
     /// - **Built-in tools:** Tools that are provided by OpenAI that extend the model's capabilities, like [web search](https://platform.openai.com/docs/guides/tools-web-search) or [file search](https://platform.openai.com/docs/guides/tools-file-search). Learn more about [built-in tools](https://platform.openai.com/docs/guides/tools).
     /// - **Function calls (custom tools):** Functions that are defined by you, enabling the model to call your own code. Learn more about [function calling](https://platform.openai.com/docs/guides/function-calling).
-    public let tools: [Tool]
+    /// wangqi 2026-01-08: Made optional to support servers that don't return this field
+    public let tools: [Tool]?
     
     /// An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are considered.
     ///

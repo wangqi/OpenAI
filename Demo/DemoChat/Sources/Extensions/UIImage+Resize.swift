@@ -5,7 +5,9 @@
 //  Created by Oleksii Nezhyborets on 17.04.2025.
 //
 
+#if canImport(UIKit)
 import UIKit
+#endif
 
 extension UIImage {
     /// Resize the image to fit within the bounding box while preserving aspect ratio.

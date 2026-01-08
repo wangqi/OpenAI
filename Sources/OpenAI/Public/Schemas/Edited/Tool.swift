@@ -111,3 +111,7 @@
         }
     }
 }
+
+// wangqi 2026-01-08: Added typealias to disambiguate from project's Tool protocol
+/// Typealias for use in projects that have a conflicting `Tool` type (e.g., a Tool protocol)
+public typealias ResponsesAPITool = Tool

@@ -13,3 +13,6 @@ public enum ServiceTier: String, Codable, Hashable, Sendable, CaseIterable {
     case flexTier = "flex"
     case onDemand = "on_demand"
 }
+
+// wangqi 2026-01-08: Added typealias to disambiguate from potential conflicts
+public typealias ResponsesAPIServiceTier = ServiceTier

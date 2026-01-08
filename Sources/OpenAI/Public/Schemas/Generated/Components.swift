@@ -9280,7 +9280,8 @@ public enum Components {
             /// A detailed breakdown of the input tokens.
             ///
             /// - Remark: Generated from `#/components/schemas/ResponseUsage/input_tokens_details`.
-            public var inputTokensDetails: Components.Schemas.ResponseUsage.InputTokensDetailsPayload
+            /// wangqi 2026-01-08: Made optional to support servers that don't return this field
+            public var inputTokensDetails: Components.Schemas.ResponseUsage.InputTokensDetailsPayload?
             /// The number of output tokens.
             ///
             /// - Remark: Generated from `#/components/schemas/ResponseUsage/output_tokens`.
@@ -9307,7 +9308,8 @@ public enum Components {
             /// A detailed breakdown of the output tokens.
             ///
             /// - Remark: Generated from `#/components/schemas/ResponseUsage/output_tokens_details`.
-            public var outputTokensDetails: Components.Schemas.ResponseUsage.OutputTokensDetailsPayload
+            /// wangqi 2026-01-08: Made optional to support servers that don't return this field
+            public var outputTokensDetails: Components.Schemas.ResponseUsage.OutputTokensDetailsPayload?
             /// The total number of tokens used.
             ///
             /// - Remark: Generated from `#/components/schemas/ResponseUsage/total_tokens`.
@@ -9320,11 +9322,12 @@ public enum Components {
             ///   - outputTokens: The number of output tokens.
             ///   - outputTokensDetails: A detailed breakdown of the output tokens.
             ///   - totalTokens: The total number of tokens used.
+            /// wangqi 2026-01-08: Made inputTokensDetails and outputTokensDetails optional with default nil
             public init(
                 inputTokens: Swift.Int,
-                inputTokensDetails: Components.Schemas.ResponseUsage.InputTokensDetailsPayload,
+                inputTokensDetails: Components.Schemas.ResponseUsage.InputTokensDetailsPayload? = nil,
                 outputTokens: Swift.Int,
-                outputTokensDetails: Components.Schemas.ResponseUsage.OutputTokensDetailsPayload,
+                outputTokensDetails: Components.Schemas.ResponseUsage.OutputTokensDetailsPayload? = nil,
                 totalTokens: Swift.Int
             ) {
                 self.inputTokens = inputTokens
@@ -11969,7 +11972,8 @@ public enum Components {
             /// The annotations of the text output.
             ///
             /// - Remark: Generated from `#/components/schemas/OutputTextContent/annotations`.
-            public var annotations: [Components.Schemas.Annotation]
+            /// wangqi 2026-01-08: Made optional to support servers that don't return annotations
+            public var annotations: [Components.Schemas.Annotation]?
             /// - Remark: Generated from `#/components/schemas/OutputTextContent/logprobs`.
             public var logprobs: [Components.Schemas.LogProb]?
             /// Creates a new `OutputTextContent`.
@@ -11979,10 +11983,11 @@ public enum Components {
             ///   - text: The text output from the model.
             ///   - annotations: The annotations of the text output.
             ///   - logprobs:
+            /// wangqi 2026-01-08: Made annotations optional with default nil
             public init(
                 _type: Components.Schemas.OutputTextContent._TypePayload,
                 text: Swift.String,
-                annotations: [Components.Schemas.Annotation],
+                annotations: [Components.Schemas.Annotation]? = nil,
                 logprobs: [Components.Schemas.LogProb]? = nil
             ) {
                 self._type = _type

@@ -7,7 +7,9 @@
 
 import SwiftUI
 import OpenAI
+#if canImport(UIKit)
 import UIKit
+#endif
 
 public struct TextToSpeechView: View {
     

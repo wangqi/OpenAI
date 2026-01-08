@@ -5,7 +5,9 @@
 //  Created by Aled Samuel on 22/04/2023.
 //
 
+#if canImport(UIKit)
 import UIKit
+#endif
 import OpenAI
 
 public final class MiscStore: ObservableObject {
