@@ -132,4 +132,36 @@ public struct ResponseObject: Codable, Equatable, Sendable {
         case usage
         case user
     }
+
+    // wangqi 2026-01-16: Custom decoder to handle third-party servers sending wrong types
+    // Gracefully ignore fields with type mismatches or malformed values instead of crashing
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Required fields - these must succeed or throw
+        self.createdAt = try container.decode(Int.self, forKey: .createdAt)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.model = try container.decode(String.self, forKey: .model)
+        self.object = try container.decode(String.self, forKey: .object)
+        self.output = try container.decode([OutputItem].self, forKey: .output)
+        self.status = try container.decode(String.self, forKey: .status)
+
+        // Optional fields - gracefully handle type mismatches
+        self.error = try? container.decodeIfPresent(Schemas.ResponseError.self, forKey: .error)
+        self.incompleteDetails = try? container.decodeIfPresent(IncompleteDetails.self, forKey: .incompleteDetails)
+        self.instructions = try? container.decodeIfPresent(String.self, forKey: .instructions)
+        self.maxOutputTokens = try? container.decodeIfPresent(Int.self, forKey: .maxOutputTokens)
+        self.metadata = try? container.decodeIfPresent([String: String].self, forKey: .metadata)
+        self.parallelToolCalls = try? container.decodeIfPresent(Bool.self, forKey: .parallelToolCalls)
+        self.previousResponseId = try? container.decodeIfPresent(String.self, forKey: .previousResponseId)
+        self.reasoning = try? container.decodeIfPresent(Schemas.Reasoning.self, forKey: .reasoning)
+        self.temperature = try? container.decodeIfPresent(Double.self, forKey: .temperature)
+        self.text = try? container.decodeIfPresent(ResponseProperties.TextPayload.self, forKey: .text)
+        self.toolChoice = try? container.decodeIfPresent(ResponseProperties.ToolChoicePayload.self, forKey: .toolChoice)
+        self.tools = try? container.decodeIfPresent([Tool].self, forKey: .tools)
+        self.topP = try? container.decodeIfPresent(Double.self, forKey: .topP)
+        self.truncation = try? container.decodeIfPresent(String.self, forKey: .truncation)
+        self.usage = try? container.decodeIfPresent(Schemas.ResponseUsage.self, forKey: .usage)
+        self.user = try? container.decodeIfPresent(String.self, forKey: .user)
+    }
 }

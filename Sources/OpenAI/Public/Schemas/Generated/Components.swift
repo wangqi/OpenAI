@@ -4417,6 +4417,19 @@ public enum Components {
                 case user
                 case serviceTier = "service_tier"
             }
+
+            // wangqi 2026-01-16: Custom decoder to handle third-party servers sending wrong types
+            // Gracefully ignore fields with type mismatches or malformed values instead of crashing
+            public init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+
+                // Try to decode each field, set to nil if type mismatch occurs
+                self.metadata = try? container.decodeIfPresent(Components.Schemas.Metadata.self, forKey: .metadata)
+                self.temperature = try? container.decodeIfPresent(Swift.Double.self, forKey: .temperature)
+                self.topP = try? container.decodeIfPresent(Swift.Double.self, forKey: .topP)
+                self.user = try? container.decodeIfPresent(Swift.String.self, forKey: .user)
+                self.serviceTier = try? container.decodeIfPresent(Components.Schemas.ServiceTier.self, forKey: .serviceTier)
+            }
         }
         /// A mouse move action.
         ///
