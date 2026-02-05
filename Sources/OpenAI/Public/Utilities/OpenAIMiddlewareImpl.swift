@@ -10,9 +10,9 @@ import Foundation
 
 public final class OpenAIMiddlewareImpl: OpenAIMiddleware {
     private let label: String
-    private let debugHandler: ((String) -> Void)?
+    private let debugHandler: ((String, String) -> Void)?
 
-    public init(label: String = "OpenAI Inspector", debugHandler: ((String) -> Void)? = nil) {
+    public init(label: String = "OpenAI Inspector", debugHandler: ((String, String) -> Void)? = nil) {
         self.label = label
         self.debugHandler = debugHandler
     }
@@ -36,18 +36,18 @@ public final class OpenAIMiddlewareImpl: OpenAIMiddleware {
             output += "Body: <empty or binary>\n"
         }
 
-        emit(output)
+        emit(output, type: "request")
         return request
     }
 
     public func interceptStreamingData(request: URLRequest?, _ data: Data) -> Data {
         guard let string = String(data: data, encoding: .utf8) else {
-            emit("[\(label)] Streaming Data: <non-UTF8 binary>")
+            emit("[\(label)] Streaming Data: <non-UTF8 binary>", type: "streaming")
             return data
         }
 
         for line in string.components(separatedBy: .newlines) where !line.trimmingCharacters(in: .whitespaces).isEmpty {
-            emit("[\(label)] Streaming Line: \(line)")
+            emit("[\(label)] Streaming Line: \(line)", type: "streaming")
         }
 
         return data
@@ -75,10 +75,10 @@ public final class OpenAIMiddlewareImpl: OpenAIMiddleware {
             output += "Body: <no data>\n"
         }
 
-        emit(output)
+        emit(output, type: "response")
         return (response, data)
     }
-    
+
     // wangqi modified 2025-05-20
     public func interceptError(response: URLResponse?, request: URLRequest?, data: Data?, error: Error?) {
         var output = "\n\n[\(label)] Response Error Intercepted:\n"
@@ -131,14 +131,14 @@ public final class OpenAIMiddlewareImpl: OpenAIMiddleware {
             output += "Error: <none>\n"
         }
         
-        emit(output)
+        emit(output, type: "error")
     }
 
     // MARK: - Utilities
 
-    private func emit(_ message: String) {
+    private func emit(_ message: String, type: String) {
         if let handler = debugHandler {
-            handler(message)
+            handler(message, type)
         } else {
             print(message)
         }
