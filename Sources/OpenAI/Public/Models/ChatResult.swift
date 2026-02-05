@@ -290,24 +290,67 @@ public struct ChatResult: Codable, Equatable, Sendable {
         public let totalTokens: Int
         /// Breakdown of tokens used in the prompt.
         public let promptTokensDetails: PromptTokensDetails?
-        
+        /// Breakdown of tokens used in the completion.
+        /// wangqi 2026-02-05: Added to support reasoning_tokens and other completion details
+        public let completionTokensDetails: CompletionTokensDetails?
+
         public struct PromptTokensDetails: Codable, Equatable, Sendable {
             /// Audio input tokens present in the prompt.
             public let audioTokens: Int
             /// Cached tokens present in the prompt.
             public let cachedTokens: Int
-            
+
             enum CodingKeys: String, CodingKey {
                 case audioTokens = "audio_tokens"
                 case cachedTokens = "cached_tokens"
             }
+
+            // wangqi 2026-02-05: Custom decoder to gracefully handle missing or unknown fields
+            // This ensures that missing fields don't break parsing of other normal fields
+            public init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+
+                // Decode each field individually, providing default value (0) if missing
+                self.audioTokens = try container.decodeIfPresent(Int.self, forKey: .audioTokens) ?? 0
+                self.cachedTokens = try container.decodeIfPresent(Int.self, forKey: .cachedTokens) ?? 0
+            }
         }
-        
+
+        public struct CompletionTokensDetails: Codable, Equatable, Sendable {
+            /// Reasoning tokens used in the completion (e.g., for models like DeepSeek, o1).
+            public let reasoningTokens: Int
+            /// Audio output tokens in the completion.
+            public let audioTokens: Int
+            /// Accepted prediction tokens (for speculative decoding).
+            public let acceptedPredictionTokens: Int
+            /// Rejected prediction tokens (for speculative decoding).
+            public let rejectedPredictionTokens: Int
+
+            enum CodingKeys: String, CodingKey {
+                case reasoningTokens = "reasoning_tokens"
+                case audioTokens = "audio_tokens"
+                case acceptedPredictionTokens = "accepted_prediction_tokens"
+                case rejectedPredictionTokens = "rejected_prediction_tokens"
+            }
+
+            // wangqi 2026-02-05: Custom decoder to gracefully handle missing or unknown fields
+            public init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+
+                // Decode each field individually, providing default value (0) if missing
+                self.reasoningTokens = try container.decodeIfPresent(Int.self, forKey: .reasoningTokens) ?? 0
+                self.audioTokens = try container.decodeIfPresent(Int.self, forKey: .audioTokens) ?? 0
+                self.acceptedPredictionTokens = try container.decodeIfPresent(Int.self, forKey: .acceptedPredictionTokens) ?? 0
+                self.rejectedPredictionTokens = try container.decodeIfPresent(Int.self, forKey: .rejectedPredictionTokens) ?? 0
+            }
+        }
+
         enum CodingKeys: String, CodingKey {
             case completionTokens = "completion_tokens"
             case promptTokens = "prompt_tokens"
             case totalTokens = "total_tokens"
             case promptTokensDetails = "prompt_tokens_details"
+            case completionTokensDetails = "completion_tokens_details"
         }
     }
 }
