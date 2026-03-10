@@ -14,10 +14,6 @@ final class ModelResponseEventsStreamInterpreter: @unchecked Sendable, StreamInt
     private var onError: ((Error) -> Void)?
     private let decoder = JSONDecoder()
     
-    enum InterpreterError: DescribedError {
-        case unknownEventType(String)
-    }
-    
     init () {
         parser.setCallbackClosures { [weak self] event in
             guard let self else {
@@ -65,12 +61,100 @@ final class ModelResponseEventsStreamInterpreter: @unchecked Sendable, StreamInt
             eventType = payloadEventType
         }
 
-        guard let modelResponseEventType = ModelResponseStreamEventType(rawValue: eventType) else {
-            throw InterpreterError.unknownEventType(eventType)
+        // wangqi [2026-03-10]: Handle LM Studio's non-standard reasoning_text events.
+        // LM Studio uses "response.reasoning_text.delta/done" with "content_index" instead
+        // of the standard "response.reasoning_summary_text.delta/done" with "summary_index".
+        if eventType == "response.reasoning_text.delta" {
+            let mapped = try decodeLMStudioReasoningTextDelta(data: finalEvent.data)
+            onEventDispatched?(.reasoningSummaryText(.delta(mapped)))
+            return
+        } else if eventType == "response.reasoning_text.done" {
+            let mapped = try decodeLMStudioReasoningTextDone(data: finalEvent.data)
+            onEventDispatched?(.reasoningSummaryText(.done(mapped)))
+            return
         }
-        
+
+        guard let modelResponseEventType = ModelResponseStreamEventType(rawValue: eventType) else {
+            // wangqi [2026-03-10]: Silently skip unknown event types from non-standard servers
+            return
+        }
+
         let responseStreamEvent = try responseStreamEvent(modelResponseEventType: modelResponseEventType, data: finalEvent.data)
         onEventDispatched?(responseStreamEvent)
+    }
+
+    // MARK: - LM Studio compatibility decoders
+
+    // Lenient payloads for LM Studio's non-standard reasoning_text events.
+    // All fields use decodeIfPresent with safe defaults so missing fields never crash.
+    private struct LMStudioReasoningTextDeltaPayload: Decodable {
+        let itemId: String
+        let outputIndex: Int
+        let contentIndex: Int
+        let delta: String
+        let sequenceNumber: Int
+        enum CodingKeys: String, CodingKey {
+            case itemId = "item_id"
+            case outputIndex = "output_index"
+            case contentIndex = "content_index"
+            case delta
+            case sequenceNumber = "sequence_number"
+        }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            itemId         = (try? c.decodeIfPresent(String.self, forKey: .itemId)) ?? ""
+            outputIndex    = (try? c.decodeIfPresent(Int.self,    forKey: .outputIndex)) ?? 0
+            contentIndex   = (try? c.decodeIfPresent(Int.self,    forKey: .contentIndex)) ?? 0
+            delta          = (try? c.decodeIfPresent(String.self, forKey: .delta)) ?? ""
+            sequenceNumber = (try? c.decodeIfPresent(Int.self,    forKey: .sequenceNumber)) ?? 0
+        }
+    }
+
+    private struct LMStudioReasoningTextDonePayload: Decodable {
+        let itemId: String
+        let outputIndex: Int
+        let contentIndex: Int
+        let text: String
+        let sequenceNumber: Int
+        enum CodingKeys: String, CodingKey {
+            case itemId = "item_id"
+            case outputIndex = "output_index"
+            case contentIndex = "content_index"
+            case text
+            case sequenceNumber = "sequence_number"
+        }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            itemId         = (try? c.decodeIfPresent(String.self, forKey: .itemId)) ?? ""
+            outputIndex    = (try? c.decodeIfPresent(Int.self,    forKey: .outputIndex)) ?? 0
+            contentIndex   = (try? c.decodeIfPresent(Int.self,    forKey: .contentIndex)) ?? 0
+            text           = (try? c.decodeIfPresent(String.self, forKey: .text)) ?? ""
+            sequenceNumber = (try? c.decodeIfPresent(Int.self,    forKey: .sequenceNumber)) ?? 0
+        }
+    }
+
+    private func decodeLMStudioReasoningTextDelta(data: Data) throws -> Schemas.ResponseReasoningSummaryTextDeltaEvent {
+        let p = try decoder.decode(LMStudioReasoningTextDeltaPayload.self, from: data)
+        return Schemas.ResponseReasoningSummaryTextDeltaEvent(
+            _type: .response_reasoningSummaryText_delta,
+            itemId: p.itemId,
+            outputIndex: p.outputIndex,
+            summaryIndex: p.contentIndex,
+            delta: p.delta,
+            sequenceNumber: p.sequenceNumber
+        )
+    }
+
+    private func decodeLMStudioReasoningTextDone(data: Data) throws -> Schemas.ResponseReasoningSummaryTextDoneEvent {
+        let p = try decoder.decode(LMStudioReasoningTextDonePayload.self, from: data)
+        return Schemas.ResponseReasoningSummaryTextDoneEvent(
+            _type: .response_reasoningSummaryText_done,
+            itemId: p.itemId,
+            outputIndex: p.outputIndex,
+            summaryIndex: p.contentIndex,
+            text: p.text,
+            sequenceNumber: p.sequenceNumber
+        )
     }
 
     private func processError(_ error: Error) {

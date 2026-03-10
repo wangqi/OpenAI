@@ -201,10 +201,11 @@ public enum ResponseStreamEvent: Codable, Equatable, Sendable {
     case outputTextAnnotation(OutputTextAnnotationEvent)
     case reasoning(ReasoningEvent)
     case reasoningSummary(ReasoningSummaryEvent)
-    
+    /// wangqi [2026-03-10]: Unrecognized event type from non-standard server — stream continues safely
+    case unknown
+
     enum ResponseStreamEventDecodingError: Error {
         case unknownEventType(String)
-        case unknownEvent(Components.Schemas.ResponseStreamEvent)
         case unexpectedParsingCase
     }
     
@@ -383,7 +384,8 @@ public enum ResponseStreamEvent: Codable, Equatable, Sendable {
         } else if let value = rawEvent.value53 {
             self = .reasoningSummary(.done(value))
         } else {
-            throw ResponseStreamEventDecodingError.unknownEvent(rawEvent)
+            // wangqi [2026-03-10]: Unknown event type from non-standard server — skip gracefully
+            self = .unknown
         }
     }
 }

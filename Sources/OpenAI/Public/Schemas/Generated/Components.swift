@@ -4482,30 +4482,19 @@ public enum Components {
             }
         }
         /// - Remark: Generated from `#/components/schemas/OutputContent`.
-        @frozen public enum OutputContent: Codable, Hashable, Sendable {
+        // wangqi [2026-03-10]: Removed @frozen and added .unknown case so unrecognized content
+        // part types from non-standard servers (e.g. LM Studio's "reasoning_text") never crash.
+        public enum OutputContent: Codable, Hashable, Sendable {
             /// - Remark: Generated from `#/components/schemas/OutputContent/case1`.
             case OutputTextContent(Components.Schemas.OutputTextContent)
             /// - Remark: Generated from `#/components/schemas/OutputContent/case2`.
             case RefusalContent(Components.Schemas.RefusalContent)
+            /// Lenient fallback — unrecognized content types from non-standard servers are ignored
+            case unknown
             public init(from decoder: any Decoder) throws {
-                var errors: [any Error] = []
-                do {
-                    self = .OutputTextContent(try .init(from: decoder))
-                    return
-                } catch {
-                    errors.append(error)
-                }
-                do {
-                    self = .RefusalContent(try .init(from: decoder))
-                    return
-                } catch {
-                    errors.append(error)
-                }
-                throw Swift.DecodingError.failedToDecodeOneOfSchema(
-                    type: Self.self,
-                    codingPath: decoder.codingPath,
-                    errors: errors
-                )
+                do { self = .OutputTextContent(try .init(from: decoder)); return } catch {}
+                do { self = .RefusalContent(try .init(from: decoder)); return } catch {}
+                self = .unknown
             }
             public func encode(to encoder: any Encoder) throws {
                 switch self {
@@ -4513,6 +4502,8 @@ public enum Components {
                     try value.encode(to: encoder)
                 case let .RefusalContent(value):
                     try value.encode(to: encoder)
+                case .unknown:
+                    break
                 }
             }
         }
