@@ -80,15 +80,15 @@ final class StreamingSession<Interpreter: StreamInterpreter>: NSObject, Identifi
             defer { self.onComplete?(self, finalError) }
 
             if self.isCollectingErrorResponse || isHTTPError {
+                // Call interceptError on all middlewares, not just OpenAIMiddlewareImpl
+                // wangqi modified 2026-03-14
                 for middleware in self.middlewares {
-                    if let openAIMiddleware = middleware as? OpenAIMiddlewareImpl {
-                        openAIMiddleware.interceptError(
-                            response: urlResponse, // <-- FIXED: use urlResponse here
-                            request: task.originalRequest,
-                            data: self.responseData,
-                            error: error
-                        )
-                    }
+                    middleware.interceptError(
+                        response: urlResponse,
+                        request: task.originalRequest,
+                        data: self.responseData,
+                        error: error
+                    )
                 }
 
                 if let httpResponse = httpResponse {
@@ -169,6 +169,11 @@ final class StreamingSession<Interpreter: StreamInterpreter>: NSObject, Identifi
             // --- CHANGE: For non-error responses, turn off error collection and reset responseData
             self.isCollectingErrorResponse = false
             self.responseData = nil
+            // Notify middlewares of the response headers (data arrives incrementally via interceptStreamingData)
+            // wangqi modified 2026-03-14
+            for middleware in self.middlewares {
+                _ = middleware.intercept(response: response, request: self.urlRequest, data: nil)
+            }
             completionHandler(.allow)
         }
     }
