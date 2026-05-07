@@ -995,13 +995,14 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                     }
                 }
 
+                // Skip call_id (tool_call_id) and status — Responses API-only fields rejected
+                // by strict Chat Completions validators (e.g. Mistral Pydantic extra="forbid").
+                // wangqi modified 2026-05-07
                 public func encode(to encoder: Encoder) throws {
                     var container = encoder.container(keyedBy: CodingKeys.self)
                     try container.encode(id, forKey: .id)
                     try container.encode(function, forKey: .function)
                     try container.encode(type, forKey: .type)
-                    try container.encode(call_id, forKey: .call_id)
-                    try container.encode(status, forKey: .status)
                     // Encode extra_content using JSONValue (wangqi 2025-12-25)
                     if let extraContent = extraContent {
                         let jsonExtraContent = extraContent.mapValues { JSONValue.from($0) }
@@ -1107,15 +1108,18 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                 self.status = try container.decodeIfPresent(String.self, forKey: .status) ?? "completed"
             }
 
+            // Skip Responses-API-only fields (type, arguments, status) — they are not part of the
+            // Chat Completions tool message spec and strict validators (e.g. Mistral) reject them.
+            // Also skip name when empty — some providers reject empty string name fields.
+            // wangqi modified 2026-05-07
             public func encode(to encoder: Encoder) throws {
                 var container = encoder.container(keyedBy: CodingKeys.self)
                 try container.encode(content, forKey: .content)
                 try container.encode(role, forKey: .role)
                 try container.encode(toolCallId, forKey: .toolCallId)
-                try container.encode(name, forKey: .name)
-                try container.encode(type, forKey: .type)
-                try container.encode(arguments, forKey: .arguments)
-                try container.encode(status, forKey: .status)
+                if !name.isEmpty {
+                    try container.encode(name, forKey: .name)
+                }
             }
 
             public enum CodingKeys: String, CodingKey {
