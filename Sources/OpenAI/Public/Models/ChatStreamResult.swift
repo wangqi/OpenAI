@@ -176,6 +176,48 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
                 }
             }
 
+            // Databricks Model Serving (gpt-oss models) streams delta.content as an ARRAY of
+            // typed parts instead of a plain string, e.g.
+            //   "content":[{"type":"reasoning","summary":[{"type":"summary_text","text":"..."}]},
+            //              {"type":"text","text":"..."}]
+            // Tolerant part decoder so streamed text/reasoning is extracted instead of the whole
+            // chunk failing to decode (which silently dropped the assistant's reply).
+            // wangqi modified 2026-06-01
+            struct ChoiceDeltaContentPart: Decodable {
+                let type: String?
+                let text: String?
+                let summary: [SummaryPart]?
+
+                struct SummaryPart: Decodable {
+                    let text: String?
+                    enum CodingKeys: String, CodingKey { case text }
+                    init(from decoder: Decoder) throws {
+                        let c = try decoder.container(keyedBy: CodingKeys.self)
+                        text = try c.decodeIfPresent(String.self, forKey: .text)
+                    }
+                }
+
+                enum CodingKeys: String, CodingKey { case type, text, summary }
+                init(from decoder: Decoder) throws {
+                    let c = try decoder.container(keyedBy: CodingKeys.self)
+                    type = try c.decodeIfPresent(String.self, forKey: .type)
+                    text = try c.decodeIfPresent(String.self, forKey: .text)
+                    summary = try c.decodeIfPresent([SummaryPart].self, forKey: .summary)
+                }
+
+                /// Visible text: parts of type "text" (or untyped parts that carry text).
+                var textValue: String? {
+                    guard type == "text" || type == nil else { return nil }
+                    return text
+                }
+                /// Reasoning text: type "reasoning" parts, preferring nested summary_text.
+                var reasoningValue: String? {
+                    guard type == "reasoning" else { return nil }
+                    let joinedSummary = (summary ?? []).compactMap { $0.text }.joined()
+                    return joinedSummary.isEmpty ? text : joinedSummary
+                }
+            }
+
             public enum CodingKeys: String, CodingKey {
                 case content
                 case audio
@@ -190,12 +232,29 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
             public init(from decoder: Decoder) throws {
                 let container = try decoder.container(keyedBy: CodingKeys.self)
 
-                // Decode standard fields
-                content = try container.decodeIfPresent(String.self, forKey: .content)
+                // Decode standard fields.
+                // content is normally a String, but Databricks gpt-oss streams it as a typed-part
+                // array; decode both shapes so the chunk never fails wholesale. A null/absent
+                // content decodes as nil via the String branch (decodeIfPresent succeeds with nil),
+                // so only a genuine array falls through to the part decoder.
+                // wangqi modified 2026-06-01
+                var arrayReasoning: String? = nil
+                if let stringContent = try? container.decodeIfPresent(String.self, forKey: .content) {
+                    content = stringContent
+                } else if let parts = try? container.decodeIfPresent([ChoiceDeltaContentPart].self, forKey: .content) {
+                    let joinedText = (parts ?? []).compactMap { $0.textValue }.joined()
+                    content = joinedText.isEmpty ? nil : joinedText
+                    let joinedReasoning = (parts ?? []).compactMap { $0.reasoningValue }.joined()
+                    arrayReasoning = joinedReasoning.isEmpty ? nil : joinedReasoning
+                } else {
+                    content = nil
+                }
                 audio = try container.decodeIfPresent(ChoiceDeltaAudio.self, forKey: .audio)
                 role = try container.decodeIfPresent(Role.self, forKey: .role)
                 toolCalls = try container.decodeIfPresent([ChoiceDeltaToolCall].self, forKey: .toolCalls)
-                _reasoning = try container.decodeIfPresent(String.self, forKey: ._reasoning)
+                // Reasoning may arrive via the dedicated field OR (gpt-oss) inside the content array.
+                // wangqi modified 2026-06-01
+                _reasoning = (try container.decodeIfPresent(String.self, forKey: ._reasoning)) ?? arrayReasoning
                 _reasoningContent = try container.decodeIfPresent(String.self, forKey: ._reasoningContent)
 
                 // Decode reasoning_details using JSONValue (wangqi 2025-12-09)
