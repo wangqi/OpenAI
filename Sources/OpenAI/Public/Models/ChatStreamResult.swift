@@ -421,7 +421,17 @@ public struct ChatStreamResult: Codable, Equatable, Sendable {
         // To make things simpler, we're not going to check the correctnes of payload before trying to decode
         // We're just going to ignore all the errors here by using optional try and fallback to nil `usage`
         self.usage = try? container.decodeIfPresent(ChatResult.CompletionUsage.self, forKey: .usage)
-        self.serviceTier = try container.decodeIfPresent(ServiceTier.self, forKey: .serviceTier)
+        // OpenAI-compatible providers (e.g. MiniMax) send service_tier values outside OpenAI's
+        // enum such as "standard". Decoding the enum directly throws DecodingError.dataCorrupted,
+        // which the stream interpreter swallows as "incomplete JSON" and drops the ENTIRE chunk —
+        // silently losing all content and tool_calls. Decode the raw string and map it, falling
+        // back to nil for unknown tiers so an unrecognized value never breaks the chunk.
+        // wangqi modified 2026-06-11
+        if let rawServiceTier = try container.decodeIfPresent(String.self, forKey: .serviceTier) {
+            self.serviceTier = ServiceTier(rawValue: rawServiceTier)
+        } else {
+            self.serviceTier = nil
+        }
         self.provider = try container.decodeIfPresent(String.self, forKey: .provider)
     }
 }

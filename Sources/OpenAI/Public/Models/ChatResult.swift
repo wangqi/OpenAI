@@ -83,7 +83,15 @@ public struct ChatResult: Codable, Equatable, Sendable {
         self.created = try container.decode(Int.self, forKey: .created)
         self.model = try container.decodeString(forKey: .model, parsingOptions: parsingOptions)
         self.choices = try container.decode([ChatResult.Choice].self, forKey: .choices)
-        self.serviceTier = try container.decodeIfPresent(ServiceTier.self, forKey: .serviceTier)
+        // OpenAI-compatible providers (e.g. MiniMax) send service_tier values outside OpenAI's
+        // enum such as "standard"; decoding the enum directly throws dataCorrupted. Decode the
+        // raw string and map it, falling back to nil for unknown tiers.
+        // wangqi modified 2026-06-11
+        if let rawServiceTier = try container.decodeIfPresent(String.self, forKey: .serviceTier) {
+            self.serviceTier = ServiceTier(rawValue: rawServiceTier)
+        } else {
+            self.serviceTier = nil
+        }
         self.systemFingerprint = try container.decodeIfPresent(String.self, forKey: .systemFingerprint)
         // It seems to be possible that in some cases `usage` may be neither a full object nor `null`
         // For example, whem model's response is not a content, but `refusal`
