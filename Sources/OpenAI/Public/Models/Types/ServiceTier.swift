@@ -12,6 +12,7 @@ public enum ServiceTier: String, Codable, Hashable, Sendable, CaseIterable {
     case defaultTier = "default"
     case flexTier = "flex"
     case onDemand = "on_demand"
+    case priority = "priority"
 }
 
 // wangqi 2026-01-08: Added typealias to disambiguate from potential conflicts

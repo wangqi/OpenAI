@@ -51,6 +51,7 @@ final class ModelResponseEventsStreamInterpreter: @unchecked Sendable, StreamInt
     }
     
     private func processEvent(_ event: ServerSentEventsStreamParser.Event) throws {
+        // wangqi: normalize the known incorrect annotation event name before mapping.
         let finalEvent = event.fixMappingError()
         var eventType = finalEvent.eventType
 
@@ -248,10 +249,6 @@ final class ModelResponseEventsStreamInterpreter: @unchecked Sendable, StreamInt
                 .reasoning(.delta(try decode(data: data)))
         case .responseReasoningDone:
                 .reasoning(.done(try decode(data: data)))
-        case .responseReasoningSummaryDelta:
-                .reasoningSummary(.delta(try decode(data: data)))
-        case .responseReasoningSummaryDone:
-                .reasoningSummary(.done(try decode(data: data)))
         case .responseOutputTextAnnotationAdded:
                 .outputTextAnnotation(.added(try decode(data: data)))
         case .responseAudioDelta:
@@ -295,12 +292,15 @@ final class ModelResponseEventsStreamInterpreter: @unchecked Sendable, StreamInt
 }
 
 private extension ServerSentEventsStreamParser.Event {
+    struct TypeEnvelope: Decodable { let type: String }
 
-    // Remove when they have fixed (unified)!
-    //
-    // By looking at [API Reference](https://platform.openai.com/docs/api-reference/responses-streaming/response/output_text_annotation/added)
-    // and generated type `Schemas.ResponseOutputTextAnnotationAddedEvent`
-    // We can see that "output_text.annotation" is incorrect, whereas output_text_annotation is the correct one
+    func getPayloadType() -> String? {
+        try? JSONDecoder().decode(TypeEnvelope.self, from: self.data).type
+    }
+
+    // wangqi: fork helper restored after the upstream merge dropped it (the merged top kept calling it).
+    // Remove when OpenAI unifies the event name. The API streams the annotation event as the incorrect
+    // "response.output_text.annotation.added"; the generated type expects "response.output_text_annotation.added".
     func fixMappingError() -> Self {
         let incorrectEventType = "response.output_text.annotation.added"
         let correctEventType = "response.output_text_annotation.added"
@@ -317,11 +317,5 @@ private extension ServerSentEventsStreamParser.Event {
             eventType: correctEventType,
             retry: self.retry
         )
-    }
-
-    struct TypeEnvelope: Decodable { let type: String }
-
-    func getPayloadType() -> String? {
-        try? JSONDecoder().decode(TypeEnvelope.self, from: self.data).type
     }
 }

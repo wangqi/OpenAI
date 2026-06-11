@@ -325,6 +325,7 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
         public init?(
             role: Role,
             content: String? = nil,
+            reasoningContent: String? = nil,
             imageData: Data? = nil,
             name: String? = nil,
             toolCalls: [Self.AssistantMessageParam.ToolCallParam]? = nil,
@@ -351,9 +352,9 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
                 }
             case .assistant:
                 if let content {
-                    self = .assistant(.init(content: .textContent(content), name: name, toolCalls: toolCalls))
+                    self = .assistant(.init(content: .textContent(content), name: name, toolCalls: toolCalls, reasoningContent: reasoningContent))
                 } else {
-                    self = .assistant(.init(content: nil, name: name, toolCalls: toolCalls))
+                    self = .assistant(.init(content: nil, name: name, toolCalls: toolCalls, reasoningContent: reasoningContent))
                 }
             case .tool:
                 if let content, let toolCallId {
