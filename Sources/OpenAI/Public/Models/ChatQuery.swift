@@ -813,8 +813,12 @@ public struct ChatQuery: Equatable, Codable, Streamable, Sendable {
             public let type: String
             public let videoUrl: VideoURL
 
-            public init(videoUrl: VideoURL) {
-                self.type = "input_video"
+            // Chat-completions video uses "video_url" (MiniMax + OpenRouter); OpenAI CC has no video and the
+            // Responses-API "input_video" token is recognized by no CC provider. Default to video_url; `type`
+            // param kept for reversibility / future provider variance.
+            // wangqi modified 2026-06-15
+            public init(videoUrl: VideoURL, type: String = "video_url") {
+                self.type = type
                 self.videoUrl = videoUrl
             }
 
