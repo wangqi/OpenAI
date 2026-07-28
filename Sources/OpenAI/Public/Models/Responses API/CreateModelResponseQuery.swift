@@ -92,7 +92,11 @@ public struct CreateModelResponseQuery: Codable, Equatable, Sendable {
     
     /// If set to true, the model response data will be streamed to the client as it is generated using [server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#Event_stream_format).
     /// See the [Streaming section](https://platform.openai.com/docs/api-reference/responses-streaming) below for more information.
-    public let stream: Bool?
+    // `var` so a caller can force the value without round-tripping the encoded body through
+    // JSONSerialization, which re-emits every object in randomised key order and destroyed the
+    // byte-stability a provider's prompt cache depends on.
+    // wangqi modified 2026-07-28
+    public var stream: Bool?
     
     /// What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic.
     ///

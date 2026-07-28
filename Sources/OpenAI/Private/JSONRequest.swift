@@ -47,7 +47,20 @@ extension JSONRequest: URLRequestBuildable {
         
         request.httpMethod = method
         if let body = body {
-            request.httpBody = try JSONEncoder().encode(body)
+            // Deterministic key order for the whole request body.
+            //
+            // `JSONEncoder` does NOT preserve the order a `Codable` type writes its keys in — a
+            // custom `encode(to:)` cannot control it, and without `.sortedKeys` the same query
+            // serializes to different bytes on different calls. The `tools` block alone runs to
+            // ~17,000 tokens and is re-sent on every request of an agent run, so a provider that
+            // compares `system -> tools -> messages` in order loses its cached prefix before it
+            // reaches the message list. JSON object key order is semantically insignificant, so
+            // this is behaviour-neutral. Array order is untouched (and is why `required` is sorted
+            // at the converter in ToolParameter.swift instead).
+            // wangqi modified 2026-07-28
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            request.httpBody = try encoder.encode(body)
         }
         return request
     }
