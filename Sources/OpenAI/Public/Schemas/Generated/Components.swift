@@ -9873,15 +9873,25 @@ public enum Components {
                 ///
                 /// - Remark: Generated from `#/components/schemas/ResponseUsage/input_tokens_details/cached_tokens`.
                 public var cachedTokens: Swift.Int
+                // The Responses API reports cache writes here as `cache_write_tokens`. Optional so
+                // the synthesized decoder stays lenient against servers that omit it, and
+                // display-only: writes are already inside `input_tokens` for this shape.
+                // wangqi modified 2026-08-04
+                /// The number of tokens written into the cache by this request.
+                public var cacheWriteTokens: Swift.Int?
                 /// Creates a new `InputTokensDetailsPayload`.
                 ///
                 /// - Parameters:
                 ///   - cachedTokens: The number of tokens that were retrieved from the cache.
-                public init(cachedTokens: Swift.Int) {
+                ///   - cacheWriteTokens: The number of tokens written into the cache.
+                public init(cachedTokens: Swift.Int, cacheWriteTokens: Swift.Int? = nil) {
                     self.cachedTokens = cachedTokens
+                    self.cacheWriteTokens = cacheWriteTokens
                 }
                 public enum CodingKeys: String, CodingKey {
                     case cachedTokens = "cached_tokens"
+                    // wangqi modified 2026-08-04
+                    case cacheWriteTokens = "cache_write_tokens"
                 }
             }
             /// A detailed breakdown of the input tokens.

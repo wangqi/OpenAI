@@ -273,19 +273,29 @@ public struct ChatResult: Codable, Equatable, Sendable {
         /// Breakdown of tokens used in the completion.
         /// wangqi 2026-02-05: Added to support reasoning_tokens and other completion details
         public let completionTokensDetails: CompletionTokensDetails?
+        // Surface cache-write counts so token tracking can show what a turn paid to populate the
+        // provider's prompt cache. Vercel's gateway reports it top level as
+        // `cache_creation_input_tokens` rather than inside `prompt_tokens_details`.
+        // Optional so the synthesized decoder stays lenient for the servers that omit it.
+        // wangqi modified 2026-08-04
+        /// Tokens written into the provider's prompt cache by this request (gateway-shaped field).
+        public let cacheCreationInputTokens: Int?
 
         public init(
             completionTokens: Int,
             promptTokens: Int,
             totalTokens: Int,
             promptTokensDetails: PromptTokensDetails? = nil,
-            completionTokensDetails: CompletionTokensDetails? = nil
+            completionTokensDetails: CompletionTokensDetails? = nil,
+            // wangqi modified 2026-08-04
+            cacheCreationInputTokens: Int? = nil
         ) {
             self.completionTokens = completionTokens
             self.promptTokens = promptTokens
             self.totalTokens = totalTokens
             self.promptTokensDetails = promptTokensDetails
             self.completionTokensDetails = completionTokensDetails
+            self.cacheCreationInputTokens = cacheCreationInputTokens
         }
 
 
@@ -294,10 +304,18 @@ public struct ChatResult: Codable, Equatable, Sendable {
             public let audioTokens: Int
             /// Cached tokens present in the prompt.
             public let cachedTokens: Int
+            // Cache *writes* are reported by OpenRouter as `cache_write_tokens` in this same
+            // breakdown. Display-only: OpenAI-shaped providers already count writes inside
+            // `prompt_tokens`, so this must never be added to any input total.
+            // wangqi modified 2026-08-04
+            /// Tokens written into the provider's prompt cache by this request.
+            public let cacheWriteTokens: Int
 
             enum CodingKeys: String, CodingKey {
                 case audioTokens = "audio_tokens"
                 case cachedTokens = "cached_tokens"
+                // wangqi modified 2026-08-04
+                case cacheWriteTokens = "cache_write_tokens"
             }
 
             // wangqi 2026-02-05: Custom decoder to gracefully handle missing or unknown fields
@@ -308,6 +326,8 @@ public struct ChatResult: Codable, Equatable, Sendable {
                 // Decode each field individually, providing default value (0) if missing
                 self.audioTokens = try container.decodeIfPresent(Int.self, forKey: .audioTokens) ?? 0
                 self.cachedTokens = try container.decodeIfPresent(Int.self, forKey: .cachedTokens) ?? 0
+                // wangqi modified 2026-08-04
+                self.cacheWriteTokens = try container.decodeIfPresent(Int.self, forKey: .cacheWriteTokens) ?? 0
             }
         }
 
@@ -346,6 +366,8 @@ public struct ChatResult: Codable, Equatable, Sendable {
             case totalTokens = "total_tokens"
             case promptTokensDetails = "prompt_tokens_details"
             case completionTokensDetails = "completion_tokens_details"
+            // wangqi modified 2026-08-04
+            case cacheCreationInputTokens = "cache_creation_input_tokens"
         }
     }
 }
