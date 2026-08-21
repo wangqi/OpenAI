@@ -12,8 +12,39 @@ public final class OpenAIMiddlewareImpl: OpenAIMiddleware {
     private let label: String
     private let debugHandler: ((String, String) -> Void)?
 
-    public init(label: String = "OpenAI Inspector", debugHandler: ((String, String) -> Void)? = nil) {
+    // This middleware wrote every request header verbatim, so a capture held
+    // "Authorization: Bearer <live key>" once per request -- 48 times in a single
+    // 21 MB log that lands in the working directory and is shared whenever a log
+    // is shared. The app already has a masker (StringUtil.maskedHeaderValue) and
+    // three other inspectors already use it; this one was missed because an SPM
+    // module cannot import the app's StringUtil.
+    //
+    // So the masker is INJECTED rather than reimplemented here: the app passes
+    // its own, and there is still exactly one masking implementation in the
+    // project. `(headerName, headerValue) -> displayValue`.
+    // wangqi modified 2026-08-20
+    private let headerMasker: (String, String) -> String
+
+    // Fail-safe used when no masker is injected. Deliberately blunter than the
+    // app's -- it redacts outright rather than keeping a diagnosable prefix --
+    // because the only thing worse than a coarse mask is a default that leaks.
+    // A future call site that forgets `headerMasker:` loses readability, not the
+    // key. wangqi modified 2026-08-20
+    private static func defaultMask(_ name: String, _ value: String) -> String {
+        let n = name.lowercased()
+        let sensitive = n.contains("auth") || n.contains("key")
+                     || n.contains("token") || n.contains("cookie")
+        return sensitive ? "<redacted>" : value
+    }
+
+    // `headerMasker` is placed BEFORE `debugHandler` on purpose: every existing
+    // call site passes `debugHandler` as a trailing closure, and a trailing
+    // closure binds to the LAST parameter. wangqi modified 2026-08-20
+    public init(label: String = "OpenAI Inspector",
+                headerMasker: ((String, String) -> String)? = nil,
+                debugHandler: ((String, String) -> Void)? = nil) {
         self.label = label
+        self.headerMasker = headerMasker ?? OpenAIMiddlewareImpl.defaultMask
         self.debugHandler = debugHandler
     }
 
@@ -27,7 +58,9 @@ public final class OpenAIMiddlewareImpl: OpenAIMiddleware {
         output += "URL: \(request.url?.absoluteString ?? "<unknown URL>")\n"
         output += "Headers:\n"
         request.allHTTPHeaderFields?.forEach { key, value in
-            output += "  \(key): \(value)\n"
+            // The leak. `Authorization: Bearer <live key>`, verbatim, once per
+            // request. wangqi modified 2026-08-20
+            output += "  \(key): \(headerMasker(key, value))\n"
         }
 
         if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
@@ -61,7 +94,10 @@ public final class OpenAIMiddlewareImpl: OpenAIMiddleware {
             output += "URL: \(httpResponse.url?.absoluteString ?? "<unknown URL>")\n"
             output += "Headers:\n"
             for (key, value) in httpResponse.allHeaderFields {
-                output += "  \(key): \(value)\n"
+                // Lower risk than a request Authorization, but Set-Cookie passes
+                // through here. wangqi modified 2026-08-20
+                let name = "\(key)"
+                output += "  \(key): \(headerMasker(name, "\(value)"))\n"
             }
         }
 
@@ -89,7 +125,10 @@ public final class OpenAIMiddlewareImpl: OpenAIMiddleware {
             output += "URL: \(httpResponse.url?.absoluteString ?? "<unknown URL>")\n"
             output += "Headers:\n"
             for (key, value) in httpResponse.allHeaderFields {
-                output += "  \(key): \(value)\n"
+                // Lower risk than a request Authorization, but Set-Cookie passes
+                // through here. wangqi modified 2026-08-20
+                let name = "\(key)"
+                output += "  \(key): \(headerMasker(name, "\(value)"))\n"
             }
         } else if let response = response {
             output += "Response: \(response)\n"
@@ -123,7 +162,11 @@ public final class OpenAIMiddlewareImpl: OpenAIMiddleware {
                 if !nsError.userInfo.isEmpty {
                     output += "NSError.userInfo:\n"
                     for (key, value) in nsError.userInfo {
-                        output += "  \(key): \(value)\n"
+                        // URLSession puts the failing NSURLRequest in here, and
+                        // its description carries the headers with it. Masked by
+                        // key name for the same reason as above.
+                        // wangqi modified 2026-08-20
+                        output += "  \(key): \(headerMasker(key, "\(value)"))\n"
                     }
                 }
             }
