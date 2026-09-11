@@ -147,6 +147,41 @@ final public class OpenAI: OpenAIProtocol, @unchecked Sendable {
         )
     }
 
+    // A session for REGULAR requests and a separate configuration for STREAMING ones — a pairing
+    // neither existing initializer can express, and both halves are load-bearing for the host app.
+    //
+    // `init(configuration:session:…)` leaves streaming on `FoundationURLSessionFactory`, which
+    // hardcodes `URLSession(configuration: .default)` and therefore ignores the configured
+    // `timeoutInterval` entirely: a stalled stream hangs until the OS gives up (measured at 484 s
+    // and 505 s). `init(configuration:urlSessionConfiguration:…)` fixes that but forces the regular
+    // session to be a fresh, non-shared `URLSession` too — and the host rebuilds its client once
+    // per turn, so that costs `URLSession.shared`'s connection pool on every non-streaming request.
+    //
+    // This one changes exactly one thing relative to the app's previous behaviour: the streaming
+    // session gets the timeout. Purely additive; no existing initializer is touched.
+    // wangqi modified 2026-09-11
+    public convenience init(
+        configuration: Configuration,
+        session: URLSession,
+        streamingURLSessionConfiguration: URLSessionConfiguration,
+        middlewares: [OpenAIMiddleware] = [],
+        sslStreamingDelegate: SSLDelegateProtocol? = nil
+    ) {
+        let streamingSessionFactory = ImplicitURLSessionStreamingSessionFactory(
+            middlewares: middlewares,
+            parsingOptions: configuration.parsingOptions,
+            sslDelegate: sslStreamingDelegate,
+            urlSessionFactory: ConfigurableURLSessionFactory(configuration: streamingURLSessionConfiguration)
+        )
+
+        self.init(
+            configuration: configuration,
+            session: session,
+            streamingSessionFactory: streamingSessionFactory,
+            middlewares: middlewares
+        )
+    }
+
     init(
         configuration: Configuration,
         session: URLSessionProtocol,
