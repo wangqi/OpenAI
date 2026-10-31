@@ -73,8 +73,9 @@ public struct APIErrorResponse: ErrorResponse {
 
 // wangqi defined api error
 public struct APICommonError: Error, Decodable, Equatable, CustomStringConvertible {
-    let code: String
-    let error: String
+    // Public so clients can read the provider's code (xAI sends the HTTP status here). // wangqi modified 2026-10-31
+    public let code: String
+    public let error: String
     
     enum CodingKeys: CodingKey {
         case code
