@@ -66,7 +66,8 @@ class OpenAITestsDecoder: XCTestCase {
                 .init(
                     index: 0,
                     logprobs: nil,
-                    message: .init(content: "Hello, world!", refusal: nil, role: "assistant", annotations: [], audio: nil, toolCalls: [], _reasoning: nil, _reasoningContent: nil),
+                    // Message has no memberwise init in the fork; decoded via the mock helper. // wangqi modified 2026-10-31
+                    message: ChatResult.mockChatResultChoiceMessage(content: "Hello, world!", role: "assistant"),
                     finishReason: "stop"
                 )
             ],
@@ -96,11 +97,10 @@ class OpenAITestsDecoder: XCTestCase {
             promptTokens: 80,
             totalTokens: 400,
             promptTokensDetails: nil,
-            completionTokensDetails: .init(
-                acceptedPredictionTokens: 12,
-                audioTokens: 0,
-                reasoningTokens: 256,
-                rejectedPredictionTokens: 4
+            // CompletionTokensDetails has no memberwise init in the fork; decoded from JSON. // wangqi modified 2026-10-31
+            completionTokensDetails: try JSONDecoder().decode(
+                ChatResult.CompletionUsage.CompletionTokensDetails.self,
+                from: Data(#"{"accepted_prediction_tokens":12,"audio_tokens":0,"reasoning_tokens":256,"rejected_prediction_tokens":4}"#.utf8)
             )
         )
         try decode(data, expectedValue)
@@ -347,15 +347,11 @@ class OpenAITestsDecoder: XCTestCase {
                 .init(
                     index: 0,
                     logprobs: nil,
-                    message: .init(
+                    // Message has no memberwise init in the fork; decoded via the mock helper. // wangqi modified 2026-10-31
+                    message: ChatResult.mockChatResultChoiceMessage(
                         content: nil,
-                        refusal: nil,
                         role: "assistant",
-                        annotations: [],
-                        audio: nil,
-                        toolCalls: [.init(id: "chatcmpl-1234", function: .init(arguments: "", name: "get_current_weather"))],
-                        _reasoning: nil,
-                        _reasoningContent: nil
+                        toolCalls: [.init(id: "chatcmpl-1234", function: .init(arguments: "", name: "get_current_weather"))]
                     ),
                     finishReason: "tool_calls"
                 )

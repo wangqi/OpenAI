@@ -71,7 +71,9 @@ class ResponsesEndpointTests: XCTestCase {
         try stub(dummy)
 
         let result = try await openAI.responses.createResponse(query: query)
-        switch result.tools[0] {
+        // tools is optional since the fork's tolerant decoding. // wangqi modified 2026-10-31
+        let firstTool = try XCTUnwrap(result.tools?.first)
+        switch firstTool {
         case .functionTool(let responseTool):
             guard case let JSONSchema.object(jsonSchemaObject) = responseTool.parameters else {
                 XCTFail("Expected function.parameters to be object")

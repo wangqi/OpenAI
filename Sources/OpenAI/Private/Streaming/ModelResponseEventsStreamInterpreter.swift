@@ -51,8 +51,11 @@ final class ModelResponseEventsStreamInterpreter: @unchecked Sendable, StreamInt
     }
     
     private func processEvent(_ event: ServerSentEventsStreamParser.Event) throws {
-        // wangqi: normalize the known incorrect annotation event name before mapping.
-        let finalEvent = event.fixMappingError()
+        // The fork's fixMappingError() rewrite of "response.output_text.annotation.added" to
+        // "response.output_text_annotation.added" was removed: the regenerated
+        // ModelResponseStreamEventType now uses the API's dotted name, so the rewrite made every
+        // annotation event unknown and silently dropped. // wangqi modified 2026-10-31
+        let finalEvent = event
         var eventType = finalEvent.eventType
 
         /// If the SSE `event` property is not specified by the provider service, our parser defaults it to "message" which is not a valid model response type.
@@ -298,24 +301,4 @@ private extension ServerSentEventsStreamParser.Event {
         try? JSONDecoder().decode(TypeEnvelope.self, from: self.data).type
     }
 
-    // wangqi: fork helper restored after the upstream merge dropped it (the merged top kept calling it).
-    // Remove when OpenAI unifies the event name. The API streams the annotation event as the incorrect
-    // "response.output_text.annotation.added"; the generated type expects "response.output_text_annotation.added".
-    func fixMappingError() -> Self {
-        let incorrectEventType = "response.output_text.annotation.added"
-        let correctEventType = "response.output_text_annotation.added"
-
-        guard self.eventType == incorrectEventType || self.getPayloadType() == incorrectEventType else {
-            return self
-        }
-
-        let fixedDataString = self.decodedData.replacingOccurrences(of: incorrectEventType, with: correctEventType)
-        return .init(
-            id: self.id,
-            data: fixedDataString.data(using: .utf8) ?? self.data,
-            decodedData: fixedDataString,
-            eventType: correctEventType,
-            retry: self.retry
-        )
-    }
 }

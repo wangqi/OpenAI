@@ -1696,6 +1696,14 @@ extension ChatQuery {
         try container.encodeIfPresent(streamOptions, forKey: .streamOptions)
         try container.encodeIfPresent(audioOptions, forKey: .audioOptions)
         try container.encodeIfPresent(modalities, forKey: .modalities)
+        // The hand-written encoder dropped these declared, decoded fields, so a caller setting them sent
+        // nothing (ChatQueryCodingTests encodeServiceTier / encodePredictionWithTextContent). min_p is
+        // still left out on purpose: OpenRouterQueryBuilder sets it from chat_config on every request,
+        // so encoding it is a live request change of its own. // wangqi modified 2026-10-31
+        try container.encodeIfPresent(metadata, forKey: .metadata)
+        try container.encodeIfPresent(prediction, forKey: .prediction)
+        try container.encodeIfPresent(serviceTier, forKey: .serviceTier)
+        try container.encodeIfPresent(store, forKey: .store)
 
         // Skip encoding these if nil
         if let frequencyPenalty = frequencyPenalty {

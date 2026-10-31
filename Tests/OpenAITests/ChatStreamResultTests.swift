@@ -26,7 +26,10 @@ final class ChatStreamResultTests: XCTestCase {
         } catch let error as DecodingError {
             switch error {
             case .keyNotFound(let key, _):
-                XCTAssertEqual(key as! ChatStreamResult.CodingKeys, ChatStreamResult.CodingKeys.id)
+                // The fork's decoder reads `created` before `id`; either missing required key proves the
+                // strict path throws. // wangqi modified 2026-10-31
+                let missing = key as! ChatStreamResult.CodingKeys
+                XCTAssertTrue([ChatStreamResult.CodingKeys.id, .created].contains(missing), "unexpected key \(missing)")
             default:
                 XCTFail("Unexpected error")
             }

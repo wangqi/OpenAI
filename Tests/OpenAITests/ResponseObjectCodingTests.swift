@@ -7,6 +7,7 @@ import Testing
 @testable import OpenAI
 import Foundation
 
+// status is required by the fork's decoder (it must succeed or throw), so the fixtures carry it. // wangqi modified 2026-10-31
 struct ResponseObjectCodingTests {
     private let minimalJSON = """
     {
@@ -17,7 +18,8 @@ struct ResponseObjectCodingTests {
         "output": [],
         "tools": [],
         "metadata": {},
-        "parallel_tool_calls": false
+        "parallel_tool_calls": false,
+        "status": "completed"
     }
     """
 
@@ -27,7 +29,8 @@ struct ResponseObjectCodingTests {
         #expect(response.object == "response")
         #expect(response.model == "gpt-4o")
         #expect(response.output.isEmpty)
-        #expect(response.tools.isEmpty)
+        // tools is optional since the fork's tolerant decoding. // wangqi modified 2026-10-31
+        #expect(response.tools?.isEmpty ?? true)
     }
 
     @Test func decodeCreatedAtAsDouble() throws {
@@ -51,6 +54,7 @@ struct ResponseObjectCodingTests {
             "tools": [],
             "metadata": {},
             "parallel_tool_calls": false,
+            "status": "incomplete",
             "incomplete_details": null
         }
         """
@@ -69,6 +73,7 @@ struct ResponseObjectCodingTests {
             "tools": [],
             "metadata": {},
             "parallel_tool_calls": false,
+            "status": "incomplete",
             "incomplete_details": { "reason": "max_output_tokens" }
         }
         """
